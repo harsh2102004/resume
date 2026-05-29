@@ -3,10 +3,20 @@ import connectDB from "./db/index.js";
 // require(`dotenv`).config({path:'./env'}) breaks the consistencyy
 
 dotenv.config({path:'./env'})
-// import {express} from "express"
-// const app=express()
+
 
 connectDB()
+.then(()=>{
+
+    app.listen(process.env.PORT||8000,()=>{
+
+        console.log(`server is letening at ${process.env.PORT}`)
+    })
+})
+.catch((err)=>{
+    console.log("mongodb connection failed",err);
+})
+
 
 
 
