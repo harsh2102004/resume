@@ -3,14 +3,20 @@ import connectDB from "./db/index.js";
 // require(`dotenv`).config({path:'./env'}) breaks the consistencyy
 
 dotenv.config({path:'./env'})
+import { app } from "./app.js";
 
 
 connectDB()
 .then(()=>{
-
+ 
     app.listen(process.env.PORT||8000,()=>{
 
         console.log(`server is letening at ${process.env.PORT}`)
+
+       app.on("error", (error) => {
+        console.log("❌ EXPRESS SERVER ERROR: ", error);
+        throw error;
+    }); 
     })
 })
 .catch((err)=>{
