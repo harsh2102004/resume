@@ -4,7 +4,7 @@ import bcrypt from "bcrypt"
  const UserSchema=new Schema({
 username:{
 
-    type:string,
+    type:String,
     required:true,
     unique:true,
     lowercase:true,
@@ -13,7 +13,7 @@ username:{
 },
 email:{
 
-    type:string,
+    type:String,
     required:true,
     unique:true,
     lowercase:true,
@@ -22,7 +22,7 @@ email:{
 },
 fullName:{
 
-    type:string,
+    type:String,
     required:true,
     trim:true,
     
@@ -30,13 +30,13 @@ fullName:{
 
 avatar:{
 
-    type:string ,//cloudinary
+    type:String ,//cloudinary
     required:true,
     
 },
 coverImage:{
 
-    type:string ,//cloudinary
+    type:String ,//cloudinary
     
     
 },
@@ -48,13 +48,13 @@ watchHistory:[
 }
 ],
 password:{
-    type:string,
+    type:String,
     required:[true,'pw is required']
 
 
 },
 refreshTokens:{
-    type:string
+    type:String
 }
 
 
@@ -66,19 +66,19 @@ refreshTokens:{
  UserSchema.pre("save",async function (next) {
  if (!this.isModified("password")) return next()
 
-    this.password+bcrypt.hash(this.password,10)
+    this.password = await bcrypt.hash(this.password,10)
     next()
     
  })
  // Hum ek custom method bana rahe hain "isPasswordCorrect" naam ka
-userSchema.methods.isPasswordCorrect = async function(password){
+UserSchema.methods.isPasswordCorrect = async function(password){
     // bcrypt.compare check karta hai: (Plain Password, Hashed Password)
     // 'this.password' ka matlab hai database wala hashed password
     return await bcrypt.compare(password, this.password)
 }
  
 // 1. Access Token generate karne ka method
-userSchema.methods.generateAccessToken = function(){
+UserSchema.methods.generateAccessToken = function(){
     return jwt.sign(
         {
             // Payload (Data jo token ke andar rahega)
@@ -94,7 +94,7 @@ userSchema.methods.generateAccessToken = function(){
     )
 }
 // 2. Refresh Token generate karne ka method
-userSchema.methods.generateRefreshToken = function(){
+UserSchema.methods.generateRefreshToken = function(){
     return jwt.sign(
         {
             _id: this._id,
@@ -108,4 +108,6 @@ userSchema.methods.generateRefreshToken = function(){
 
 
 
- export const user=mongoose.model("User",UserSchema)
+ const User = mongoose.model("User",UserSchema)
+
+ export default User
