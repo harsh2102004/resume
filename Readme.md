@@ -28,9 +28,7 @@ Maintainable Architecture: Followed a strict MVC-like pattern (Controllers, Mode
 Global Error Handling: Implemented a unified ApiError and ApiResponse class structure to standardize error reporting across all endpoints.
 
 ⚙️ System Architecture & Workflow
-(Briefly describe your flow here. Example:)
 
-Request: User hits the /api/v1/users/login endpoint.
 
 Middleware: verifyJWT middleware validates the cookie signature.
 
@@ -42,7 +40,7 @@ Cleanup: Automated file system cleanup ensures temporary storage is cleared afte
 Clone the repository:
 
 Bash
-git clone [YOUR_REPO_URL]
+git clone https://github.com/harsh2102004/resume
 Install dependencies:
 
 Bash
