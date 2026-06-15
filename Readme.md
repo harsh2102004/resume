@@ -47,6 +47,10 @@ Bash
 npm install
 Configure environment variables in a .env file:
 
+
+
+
+
 Code snippet
 PORT=8000
 MONGODB_URI=your_mongodb_connection_string
@@ -57,7 +61,10 @@ CLOUDINARY_CLOUD_NAME=your_name
 Run the server:
 
 Bash
-npm run dev
+npm run dev 
+
+
+
 🛠 Future Scope
 Caching: Implementing Redis to cache frequently accessed video metadata and reduce database hits.
 
