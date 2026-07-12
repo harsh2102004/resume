@@ -18,7 +18,7 @@ if(!localfilepath) return null
 //file hasbeen uploaded
 console.log("uploaded on cloudianry",response.url)
 // 2. 🔥 SUCCESS! File upload ho gayi, ab local server se delete karo
-        fs.unlinkSync(localFilePath);
+        fs.unlinkSync(localfilepath);
 return response;
 }
 

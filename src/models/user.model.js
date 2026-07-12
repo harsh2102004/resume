@@ -64,10 +64,11 @@ refreshTokens:{
 
  //dont use arrow f bcz of this and it is slow process async
  UserSchema.pre("save",async function (next) {
- if (!this.isModified("password")) return next()
+ if (!this.isModified("password")) return ;
+ //dont use next here
 
     this.password = await bcrypt.hash(this.password,10)
-    next()
+    
     
  })
  // Hum ek custom method bana rahe hain "isPasswordCorrect" naam ka
