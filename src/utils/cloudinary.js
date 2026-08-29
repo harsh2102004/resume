@@ -1,34 +1,31 @@
-import { v2 as cloudinary } from 'cloudinary';
-import fs from 'fs'
+import {v2 as cloudinary} from "cloudinary"
+import fs from "fs"
 
 
-    // Configuration
-    cloudinary.config({ 
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
-        api_key:  process.env.CLOUDINARY_API_KEY, 
-        api_secret:process.env.CLOUDINARY_API_SECRET})
-         const uploadonclodinary=async (localfilepath)=>{
-try{
-if(!localfilepath) return null
-//upload file
-  const response= await cloudinary.uploader.upload(localfilepath,{
+cloudinary.config({ 
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
+  api_key: process.env.CLOUDINARY_API_KEY, 
+  api_secret: process.env.CLOUDINARY_API_SECRET 
+});
 
-   resource_type:"auto" 
-})
-//file hasbeen uploaded
-console.log("uploaded on cloudianry",response.url)
-// 2. 🔥 SUCCESS! File upload ho gayi, ab local server se delete karo
-        fs.unlinkSync(localfilepath);
-return response;
+const uploadOnCloudinary = async (localFilePath) => {
+    try {
+        if (!localFilePath) return null
+        //upload the file on cloudinary
+        const response = await cloudinary.uploader.upload(localFilePath, {
+            resource_type: "auto"
+        })
+        // file has been uploaded successfull
+        //console.log("file is uploaded on cloudinary ", response.url);
+        fs.unlinkSync(localFilePath)
+        return response;
+
+    } catch (error) {
+        fs.unlinkSync(localFilePath) // remove the locally saved temporary file as the upload operation got failed
+        return null;
+    }
 }
 
-catch{
-//remove the locally save tamporary file as the uplad opt got failed
-    fs.unlinkSync(localfilepath)
 
 
-
-}
-
-         }
-         export{uploadonclodinary}
+export {uploadOnCloudinary}
