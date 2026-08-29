@@ -1,24 +1,75 @@
-# chai aur backend  series 
+# VidTube Backend API
 
-This is a video series on backend with javascript
-- [Model link](https://app.eraser.io/workspace/YtPqZ1VogxGy1jzIDkzj?origin=share)
+This is a robust, production-ready backend API built for a video streaming and sharing platform (similar to YouTube). It is designed to handle complex database relationships, secure file uploads, and scalable querying.
 
-- [Video playlist](https://www.youtube.com/watch?v=EH3vGeqeIAo&list=PLu71SKxNbfoBGh_8p_NS-ZAh6v7HhYqHW)
+## 🚀 Key Features
 
----
-# Summary of this project
+- **User Authentication:** Secure JWT-based authentication (Access & Refresh tokens) with robust `bcrypt` password hashing.
+- **Video Management:** Upload, publish, edit, and delete videos. Tracks video views and watch history.
+- **Cloud Storage Integration:** Fully integrated with **Cloudinary** for scalable and secure image (avatars/covers) and video hosting.
+- **User Interactions:** Robust support for comments, likes (on videos, tweets, and comments), and a complete channel subscription system.
+- **Community Tweets:** Users can post and interact with "Tweets" (text-based community posts).
+- **Playlists:** Users can create, update, and manage their own video playlists.
+- **Creator Dashboard:** Advanced MongoDB aggregation pipelines to calculate channel statistics (total views, subscribers, likes, etc.).
+- **Containerized:** Includes `Dockerfile` and `docker-compose.yml` for seamless, environment-agnostic deployment.
 
-This project is a complex backend project that is built with nodejs, expressjs, mongodb, mongoose, jwt, bcrypt, and many more. This project is a complete backend project that has all the features that a backend project should have.
-We are building a complete video hosting website similar to youtube with all the features like login, signup, upload video, like, dislike, comment, reply, subscribe, unsubscribe, and many more.
+## 🛠️ Tech Stack
 
-Project uses all standard practices like JWT, bcrypt, access tokens, refresh Tokens and many more. We have spent a lot of time in building this project and we are sure that you will learn a lot from this project.
+- **Runtime:** Node.js
+- **Framework:** Express.js
+- **Database:** MongoDB & Mongoose
+- **File Handling:** Multer
+- **Cloud Storage:** Cloudinary
+- **Authentication:** JSON Web Tokens (JWT)
+- **Containerization:** Docker
 
----
-Top Contributer to complete all TODOs
+## ⚙️ Setup & Installation
 
-1. Spiderman (just sample)  [Link to Repo](https://www.youtube.com/@chaiaurcode)
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/harsh2102004/resume.git
+   cd resume
+   ```
 
---- 
-## How to contribute in this open source Project
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-First, please understand that this is not your regular project to merge your PR. This repo requires you to finish all assignments that are in controller folder. We don't accept half work, please finish all controllers and then reach us out on [Discord](https://hitesh.ai/discord) or [Twitter](https://twitter.com/@hiteshdotcom) and after checking your repo, I will add link to your repo in this readme.
+3. **Environment Variables:**
+   Create a `.env` file in the root directory based on the `.env.sample` and configure your credentials:
+   ```env
+   PORT=8000
+   MONGODB_URI=your_mongodb_connection_string
+   CORS_ORIGIN=*
+   ACCESS_TOKEN_SECRET=your_access_token_secret
+   ACCESS_TOKEN_EXPIRY=1d
+   REFRESH_TOKEN_SECRET=your_refresh_token_secret
+   REFRESH_TOKEN_EXPIRY=10d
+   CLOUDINARY_API_KEY=your_api_key
+   CLOUDINARY_CLOUD_NAME=your_cloud_name
+   CLOUDINARY_API_SECRET=your_api_secret
+   ```
+
+4. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+   The API will be accessible at `http://localhost:8000`.
+
+## 📦 API Architecture Overview
+
+All API endpoints follow RESTful conventions and are prefixed with `/api/v1`.
+
+- `/users`: Authentication, profile management, avatar updates, and watch history retrieval.
+- `/videos`: Video uploading, querying, and deletion.
+- `/tweets`: Community post management.
+- `/subscriptions`: Channel subscriptions and subscriber querying.
+- `/comments`: Add, edit, or delete comments on videos.
+- `/likes`: Toggle likes on videos, comments, and tweets.
+- `/playlist`: Create and manage playlists.
+- `/dashboard`: Get channel statistics and videos.
+- `/healthcheck`: Verify API health status.
+
+## 🤝 Contribution
+Contributions, issues, and feature requests are welcome!
