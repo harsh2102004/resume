@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { API_BASE_URL } from "../config/api";
 
 const INITIAL_COMMENTS = {
   "demo-hls-video": [
@@ -121,7 +122,7 @@ export const CommentsSection = ({ videoId }) => {
 
       // Try fetching from backend API
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/comments/${videoId}`);
+        const res = await fetch(`${API_BASE_URL}/api/v1/comments/${videoId}`);
         const data = await res.json();
         if (data.data?.docs && data.data.docs.length > 0) {
           // Merge backend comments with local
@@ -177,7 +178,7 @@ export const CommentsSection = ({ videoId }) => {
 
     // Attempt backend save
     try {
-      await fetch(`http://localhost:8000/api/v1/comments/${videoId}`, {
+      await fetch(`${API_BASE_URL}/api/v1/comments/${videoId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: newComment.trim() }),

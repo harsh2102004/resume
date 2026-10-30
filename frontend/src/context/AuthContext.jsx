@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { API_BASE_URL } from "../config/api";
 
 const AuthContext = createContext(null);
 
@@ -23,7 +24,7 @@ export const AuthProvider = ({ children }) => {
     if (token && !user) {
       const fetchCurrent = async () => {
         try {
-          const res = await fetch("http://localhost:8000/api/v1/users/current-user", {
+          const res = await fetch(`${API_BASE_URL}/api/v1/users/current-user`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const json = await res.json();
@@ -49,7 +50,7 @@ export const AuthProvider = ({ children }) => {
         ? { email: usernameOrEmail, password }
         : { username: usernameOrEmail, password };
 
-      const res = await fetch("http://localhost:8000/api/v1/users/login", {
+      const res = await fetch(`${API_BASE_URL}/api/v1/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -79,7 +80,7 @@ export const AuthProvider = ({ children }) => {
   const register = async ({ fullName, username, email, password }) => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/v1/users/register", {
+      const res = await fetch(`${API_BASE_URL}/api/v1/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fullName, username, email, password }),
@@ -101,7 +102,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       if (token) {
-        await fetch("http://localhost:8000/api/v1/users/logout", {
+        await fetch(`${API_BASE_URL}/api/v1/users/logout`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });

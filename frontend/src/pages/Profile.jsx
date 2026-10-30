@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config/api";
 
 export const Profile = () => {
   const { username: paramUsername } = useParams();
@@ -34,7 +35,7 @@ export const Profile = () => {
           try {
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const channelRes = await fetch(
-              `http://localhost:8000/api/v1/users/c/${targetUsername}`,
+              `${API_BASE_URL}/api/v1/users/c/${targetUsername}`,
               { headers }
             );
             const channelJson = await channelRes.json();
@@ -49,7 +50,7 @@ export const Profile = () => {
         // 2. If viewing own profile and authenticated, fetch dashboard stats & videos
         if (isOwnProfile && token) {
           try {
-            const statsRes = await fetch("http://localhost:8000/api/v1/dashboard/stats", {
+            const statsRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/stats`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             const statsJson = await statsRes.json();
@@ -57,7 +58,7 @@ export const Profile = () => {
               setStats((prev) => ({ ...prev, ...statsJson.data }));
             }
 
-            const videosRes = await fetch("http://localhost:8000/api/v1/dashboard/videos", {
+            const videosRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/videos`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             const videosJson = await videosRes.json();
@@ -76,7 +77,7 @@ export const Profile = () => {
           // Fetch public videos by userId
           try {
             const pubVideosRes = await fetch(
-              `http://localhost:8000/api/v1/videos?userId=${profileData._id}`
+              `${API_BASE_URL}/api/v1/videos?userId=${profileData._id}`
             );
             const pubJson = await pubVideosRes.json();
             if (pubJson.data?.docs && isMounted) {

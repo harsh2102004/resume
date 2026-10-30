@@ -4,6 +4,7 @@ import HlsPlayer from "../components/HlsPlayer";
 import CommentsSection from "../components/CommentsSection";
 import { DEMO_VIDEOS } from "../data/demoVideos";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config/api";
 
 export const Watch = () => {
   const { videoId } = useParams();
@@ -41,7 +42,7 @@ export const Watch = () => {
     let isMounted = true;
     const fetchVideo = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/videos/${videoId}`);
+        const res = await fetch(`${API_BASE_URL}/api/v1/videos/${videoId}`);
         const json = await res.json();
         if (isMounted) {
           if (json.data) {
@@ -116,13 +117,13 @@ export const Watch = () => {
   const videoSrc = currentVideo?.videoFile?.startsWith("http")
     ? currentVideo.videoFile
     : currentVideo?.videoFile
-    ? `http://localhost:8000${currentVideo.videoFile}`
+    ? `${API_BASE_URL}${currentVideo.videoFile}`
     : "https://vjs.zencdn.net/v/oceans.mp4";
 
   const vttSrc = currentVideo?.storyboardVtt
     ? currentVideo.storyboardVtt.startsWith("http")
       ? currentVideo.storyboardVtt
-      : `http://localhost:8000${currentVideo.storyboardVtt}`
+      : `${API_BASE_URL}${currentVideo.storyboardVtt}`
     : null;
 
   const handleStartWatchParty = () => {
@@ -158,7 +159,7 @@ export const Watch = () => {
     // Synchronize to backend if token available
     if (token) {
       try {
-        await fetch(`http://localhost:8000/api/v1/likes/toggle/v/${videoId}`, {
+        await fetch(`${API_BASE_URL}/api/v1/likes/toggle/v/${videoId}`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -182,7 +183,7 @@ export const Watch = () => {
 
     // Send to backend API
     try {
-      await fetch(`http://localhost:8000/api/v1/subscriptions/c/${channelKey}`, {
+      await fetch(`${API_BASE_URL}/api/v1/subscriptions/c/${channelKey}`, {
         method: "POST",
       });
     } catch (err) {

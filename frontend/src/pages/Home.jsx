@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { DEMO_VIDEOS } from "../data/demoVideos";
+import { API_BASE_URL } from "../config/api";
 
 const CATEGORIES = [
   "All",
@@ -20,7 +21,7 @@ export const Home = () => {
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/v1/videos");
+        const res = await fetch(`${API_BASE_URL}/api/v1/videos`);
         const json = await res.json();
         const apiDocs = json.data?.docs || [];
         const validApiDocs = apiDocs.filter((v) => v.videoFile && !v.mimeType?.startsWith("image/"));

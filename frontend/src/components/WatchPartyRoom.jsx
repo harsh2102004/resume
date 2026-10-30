@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import HlsPlayer from "./HlsPlayer";
+import { WS_BASE_URL } from "../config/api";
 
 export const WatchPartyRoom = ({
   roomId = "demo-room",
@@ -18,7 +19,7 @@ export const WatchPartyRoom = ({
   const [isSynced, setIsSynced] = useState(true);
 
   useEffect(() => {
-    const socket = io("http://localhost:8000/watch-party", {
+    const socket = io(WS_BASE_URL, {
       transports: ["websocket", "polling"],
     });
     socketRef.current = socket;

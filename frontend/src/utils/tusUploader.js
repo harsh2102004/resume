@@ -1,7 +1,9 @@
+import { API_BASE_URL } from "../config/api";
+
 export class TusUploader {
   constructor(file, options = {}) {
     this.file = file;
-    this.endpoint = options.endpoint || "http://localhost:8000/api/v1/videos/resumable-upload";
+    this.endpoint = options.endpoint || `${API_BASE_URL}/api/v1/videos/resumable-upload`;
     this.chunkSize = options.chunkSize || 2 * 1024 * 1024;
     this.metadata = options.metadata || {};
     this.onProgress = options.onProgress || (() => {});
