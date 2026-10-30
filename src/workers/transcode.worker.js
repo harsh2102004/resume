@@ -5,15 +5,9 @@ import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import ffprobeInstaller from "@ffprobe-installer/ffprobe";
 import { Video } from "../models/video.model.js";
 
-// Configure fluent-ffmpeg with bundled static binaries
-if (ffmpegInstaller?.path) {
-    ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-}
-if (ffprobeInstaller?.path) {
-    ffmpeg.setFfprobePath(ffprobeInstaller.path);
-}
+if (ffmpegInstaller?.path) ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+if (ffprobeInstaller?.path) ffmpeg.setFfprobePath(ffprobeInstaller.path);
 
-// Adaptive Bitrate Resolutions for HLS
 const HLS_PROFILES = [
     {
         name: "360p",
@@ -33,9 +27,6 @@ const HLS_PROFILES = [
     },
 ];
 
-/**
- * Transcode single resolution stream into HLS segments
- */
 const transcodeToProfile = (inputPath, outputDir, profile) => {
     return new Promise((resolve, reject) => {
         const playlistFile = path.join(outputDir, `${profile.name}.m3u8`);
@@ -56,21 +47,12 @@ const transcodeToProfile = (inputPath, outputDir, profile) => {
                 "-hls_segment_filename", segmentPattern,
             ])
             .output(playlistFile)
-            .on("end", () => {
-                console.log(`[FFmpeg] Generated HLS playlist for ${profile.name}`);
-                resolve(profile);
-            })
-            .on("error", (err) => {
-                console.error(`[FFmpeg] Error generating ${profile.name}:`, err.message);
-                reject(err);
-            })
+            .on("end", () => resolve(profile))
+            .on("error", (err) => reject(err))
             .run();
     });
 };
 
-/**
- * Generate HLS Master Playlist (master.m3u8) referencing all sub-streams
- */
 const generateMasterManifest = (outputDir, profiles) => {
     let manifestContent = "#EXTM3U\n#EXT-X-VERSION:3\n";
 
@@ -84,17 +66,8 @@ const generateMasterManifest = (outputDir, profiles) => {
     return masterPath;
 };
 
-/**
- * Asynchronous Video Transcoding Job
- * Slices video into multi-bitrate HLS chunks and registers master playlist in database
- */
 export const transcodeVideoJob = async (videoId, inputFilePath) => {
-    if (!fs.existsSync(inputFilePath)) {
-        console.error(`[FFmpeg] Input file does not exist: ${inputFilePath}`);
-        return;
-    }
-
-    console.log(`[FFmpeg] Starting HLS Transcoding job for Video ${videoId}...`);
+    if (!fs.existsSync(inputFilePath)) return;
 
     try {
         await Video.findByIdAndUpdate(videoId, { transcodingStatus: "PROCESSING" });
@@ -112,12 +85,12 @@ export const transcodeVideoJob = async (videoId, inputFilePath) => {
                 await transcodeToProfile(inputFilePath, videoHlsDir, profile);
                 completedProfiles.push(profile);
             } catch (err) {
-                console.warn(`[FFmpeg] Skipping profile ${profile.name} due to transcode issue:`, err.message);
+                console.warn(`Skipping profile ${profile.name}:`, err.message);
             }
         }
 
         if (completedProfiles.length === 0) {
-            throw new Error("Failed to transcode any video resolution profile");
+            throw new Error("Transcode failed for all profiles");
         }
 
         generateMasterManifest(videoHlsDir, completedProfiles);
@@ -129,10 +102,8 @@ export const transcodeVideoJob = async (videoId, inputFilePath) => {
             hlsPath: relativeMasterPath,
             qualities: completedProfiles.map((p) => p.name),
         });
-
-        console.log(`[FFmpeg] Transcoding complete for Video ${videoId}: Master manifest ready at ${relativeMasterPath}`);
     } catch (error) {
-        console.error(`[FFmpeg] Transcoding failed for Video ${videoId}:`, error);
+        console.error(`Transcoding error (${videoId}):`, error);
         await Video.findByIdAndUpdate(videoId, { transcodingStatus: "FAILED" });
     }
 };

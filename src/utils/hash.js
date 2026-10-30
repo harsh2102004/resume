@@ -4,20 +4,13 @@ let nativeBcrypt = null;
 try {
     const mod = await import("bcrypt");
     nativeBcrypt = mod.default || mod;
-} catch (e) {
-    // Native C++ bcrypt not compiled on host environment; utilizing native scrypt fallback
-}
+} catch {}
 
-/**
- * Resilient password hashing utility with automatic native crypto fallback
- */
 export const hashPassword = async (password, rounds = 10) => {
     if (nativeBcrypt?.hash) {
         try {
             return await nativeBcrypt.hash(password, rounds);
-        } catch (err) {
-            // Fall through to native crypto
-        }
+        } catch {}
     }
     const salt = crypto.randomBytes(16).toString("hex");
     const derivedKey = crypto.scryptSync(password, salt, 64);
@@ -38,9 +31,7 @@ export const comparePassword = async (password, storedHash) => {
     if (nativeBcrypt?.compare) {
         try {
             return await nativeBcrypt.compare(password, storedHash);
-        } catch (err) {
-            return false;
-        }
+        } catch {}
     }
 
     return false;

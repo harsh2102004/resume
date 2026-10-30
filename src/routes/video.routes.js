@@ -13,33 +13,16 @@ import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-// ==========================================
-// Public Routes (Accessible without JWT)
-// ==========================================
-
-// Native HTTP 206 Partial Content Video Streaming (supports signed & direct streams)
 router.route("/stream/:videoId").get(streamVideo);
 router.route("/sign-stream/:videoId").get(getSignedStreamUrl);
-
-// Public video browsing & details
 router.route("/").get(getAllVideos);
 router.route("/:videoId").get(getVideoById);
-
-// ==========================================
-// Protected Routes (Requires JWT Authentication)
-// ==========================================
 
 router.route("/").post(
     verifyJWT,
     upload.fields([
-        {
-            name: "videoFile",
-            maxCount: 1,
-        },
-        {
-            name: "thumbnail",
-            maxCount: 1,
-        },
+        { name: "videoFile", maxCount: 1 },
+        { name: "thumbnail", maxCount: 1 },
     ]),
     publishAVideo
 );

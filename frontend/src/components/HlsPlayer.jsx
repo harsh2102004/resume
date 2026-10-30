@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 
-/**
- * Format seconds to MM:SS or HH:MM:SS
- */
 const formatTime = (seconds) => {
   if (isNaN(seconds)) return "00:00";
   const h = Math.floor(seconds / 3600);
@@ -14,9 +11,6 @@ const formatTime = (seconds) => {
   return `${pad(m)}:${pad(s)}`;
 };
 
-/**
- * Parse WebVTT timestamp to seconds
- */
 const parseVttTimestamp = (timestamp) => {
   const parts = timestamp.trim().split(":");
   if (parts.length === 3) {
@@ -30,9 +24,6 @@ const parseVttTimestamp = (timestamp) => {
   return 0;
 };
 
-/**
- * Modern Adaptive Bitrate HLS Video Player with Storyboard Scrubbing Previews
- */
 export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
   const videoRef = useRef(null);
   const hlsRef = useRef(null);

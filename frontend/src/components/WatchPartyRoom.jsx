@@ -2,11 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import HlsPlayer from "./HlsPlayer";
 
-/**
- * Real-Time Synchronized Watch Party Room
- * Features state synchronization, client-side drift compensation algorithm,
- * host badges, and in-room live messaging.
- */
 export const WatchPartyRoom = ({
   roomId = "demo-room",
   username = "GuestUser",

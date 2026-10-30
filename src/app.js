@@ -24,8 +24,6 @@ app.use(cors({
     ]
 }));
 
-// Resumable TUS Upload Endpoint
-// Handled before express.json() to prevent body parsers from consuming binary PATCH streams
 app.all("/api/v1/videos/resumable-upload*", (req, res) => {
     return tusServer.handle(req, res);
 });

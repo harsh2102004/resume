@@ -8,9 +8,6 @@ import { Video } from "../models/video.model.js";
 if (ffmpegInstaller?.path) ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 if (ffprobeInstaller?.path) ffmpeg.setFfprobePath(ffprobeInstaller.path);
 
-/**
- * Format seconds into WebVTT timestamp format (HH:MM:SS.mmm)
- */
 const formatVttTime = (totalSeconds) => {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -21,14 +18,11 @@ const formatVttTime = (totalSeconds) => {
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}.${pad(milliseconds, 3)}`;
 };
 
-/**
- * Probe video duration using ffprobe
- */
 const probeVideoDuration = (filePath) => {
     return new Promise((resolve) => {
         ffmpeg.ffprobe(filePath, (err, metadata) => {
             if (err || !metadata?.format?.duration) {
-                resolve(30); // Fallback 30 seconds
+                resolve(30);
             } else {
                 resolve(Math.max(1, Math.round(metadata.format.duration)));
             }
@@ -36,27 +30,17 @@ const probeVideoDuration = (filePath) => {
     });
 };
 
-/**
- * Storyboard Sprite Generator Worker
- * Extracts frames at 5-second intervals, tiles them into a 5x5 image sprite grid,
- * and compiles a standard WebVTT cue file for video scrubbing timeline previews.
- */
 export const generateStoryboardJob = async (videoId, inputFilePath) => {
-    if (!fs.existsSync(inputFilePath)) {
-        console.error(`[Storyboard] Input file not found: ${inputFilePath}`);
-        return null;
-    }
+    if (!fs.existsSync(inputFilePath)) return null;
 
     try {
-        console.log(`[Storyboard] Generating scrubbing sprite sheet for Video ${videoId}...`);
-
         const duration = await probeVideoDuration(inputFilePath);
-        const interval = 5; // Frame every 5 seconds
+        const interval = 5;
         const thumbWidth = 160;
         const thumbHeight = 90;
         const gridCols = 5;
         const gridRows = 5;
-        const tilesPerSheet = gridCols * gridRows; // 25 tiles
+        const tilesPerSheet = gridCols * gridRows;
 
         const totalFrames = Math.max(1, Math.ceil(duration / interval));
 
@@ -76,18 +60,11 @@ export const generateStoryboardJob = async (videoId, inputFilePath) => {
                     "-q:v", "3",
                 ])
                 .output(spritePattern)
-                .on("end", () => {
-                    console.log(`[Storyboard] Sprite sheet images rendered for Video ${videoId}`);
-                    resolve();
-                })
-                .on("error", (err) => {
-                    console.error(`[Storyboard] Error rendering sprites:`, err.message);
-                    reject(err);
-                })
+                .on("end", () => resolve())
+                .on("error", (err) => reject(err))
                 .run();
         });
 
-        // Generate WebVTT cue index
         let vttContent = "WEBVTT\n\n";
 
         for (let i = 0; i < totalFrames; i++) {
@@ -119,10 +96,9 @@ export const generateStoryboardJob = async (videoId, inputFilePath) => {
             duration,
         });
 
-        console.log(`[Storyboard] WebVTT manifest created: ${relativeVttPath}`);
         return relativeVttPath;
     } catch (err) {
-        console.error(`[Storyboard] Generation failed for Video ${videoId}:`, err);
+        console.error(`Storyboard error (${videoId}):`, err);
         return null;
     }
 };

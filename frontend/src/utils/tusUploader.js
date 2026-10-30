@@ -1,13 +1,8 @@
-/**
- * Client-side TUS Resumable Chunked Uploader
- * Conforms to the TUS open protocol (POST, PATCH, HEAD).
- * Handles chunking, pause/resume, and offset tracking on network disconnects.
- */
 export class TusUploader {
   constructor(file, options = {}) {
     this.file = file;
     this.endpoint = options.endpoint || "http://localhost:8000/api/v1/videos/resumable-upload";
-    this.chunkSize = options.chunkSize || 2 * 1024 * 1024; // 2MB default chunk
+    this.chunkSize = options.chunkSize || 2 * 1024 * 1024;
     this.metadata = options.metadata || {};
     this.onProgress = options.onProgress || (() => {});
     this.onSuccess = options.onSuccess || (() => {});
@@ -20,14 +15,12 @@ export class TusUploader {
     this.currentXhr = null;
   }
 
-  // Encode metadata object to TUS base64 key-value string
   _encodeMetadata() {
     return Object.entries(this.metadata)
       .map(([key, val]) => `${key} ${btoa(unescape(encodeURIComponent(String(val))))}`)
       .join(",");
   }
 
-  // Step 1: Initiate upload session (POST)
   async start() {
     this.isPaused = false;
     this.isAborted = false;
@@ -44,12 +37,12 @@ export class TusUploader {
         });
 
         if (response.status !== 201) {
-          throw new Error(`Failed to create upload: HTTP ${response.status}`);
+          throw new Error(`Upload creation failed: HTTP ${response.status}`);
         }
 
         const location = response.headers.get("Location");
         if (!location) {
-          throw new Error("Server did not return a valid upload location header");
+          throw new Error("Missing upload location header");
         }
 
         this.uploadUrl = location.startsWith("http")
@@ -58,7 +51,6 @@ export class TusUploader {
 
         this.offset = 0;
       } else {
-        // Query server for existing offset if resuming
         await this.syncOffset();
       }
 
@@ -68,7 +60,6 @@ export class TusUploader {
     }
   }
 
-  // Query server for currently stored bytes (HEAD)
   async syncOffset() {
     const response = await fetch(this.uploadUrl, {
       method: "HEAD",
@@ -85,7 +76,6 @@ export class TusUploader {
     }
   }
 
-  // Step 2 & 3: Send chunk (PATCH)
   _uploadNextChunk() {
     if (this.isPaused || this.isAborted) return;
 
@@ -135,13 +125,12 @@ export class TusUploader {
 
     xhr.onerror = () => {
       this.currentXhr = null;
-      this.onError(new Error("Network connection lost during chunk transfer. Ready to resume."));
+      this.onError(new Error("Network connection lost during chunk transfer"));
     };
 
     xhr.send(chunk);
   }
 
-  // Pause upload (can be resumed anytime)
   pause() {
     this.isPaused = true;
     if (this.currentXhr) {
@@ -150,7 +139,6 @@ export class TusUploader {
     }
   }
 
-  // Resume upload after pause or network drop
   resume() {
     if (!this.isPaused) return;
     this.isPaused = false;
