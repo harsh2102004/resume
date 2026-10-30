@@ -8,6 +8,7 @@ import Upload from "./pages/Upload";
 import WatchParty from "./pages/WatchParty";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function App() {
   return (
@@ -17,15 +18,17 @@ function App() {
         <Navbar />
 
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/watch/:videoId" element={<Watch />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="/watch-party" element={<WatchParty />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/channel/:username" element={<Profile />} />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/watch/:videoId" element={<Watch />} />
+              <Route path="/upload" element={<Upload />} />
+              <Route path="/watch-party" element={<WatchParty />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/channel/:username" element={<Profile />} />
+            </Routes>
+          </ErrorBoundary>
         </main>
 
         {/* Clean, Professional Footer */}

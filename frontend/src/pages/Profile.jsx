@@ -5,7 +5,7 @@ import { API_BASE_URL } from "../config/api";
 
 export const Profile = () => {
   const { username: paramUsername } = useParams();
-  const { user: currentUser, token, isAuthenticated } = useAuth();
+  const { user: currentUser, token, isAuthenticated, logout } = useAuth();
 
   const isOwnProfile = !paramUsername || paramUsername === currentUser?.username;
 
@@ -65,11 +65,12 @@ export const Profile = () => {
             });
             const videosJson = await videosRes.json();
             if (videosJson.data?.docs && isMounted) {
-              setVideos(videosJson.data.docs);
+              const videoDocs = Array.isArray(videosJson.data.docs) ? videosJson.data.docs : [];
+              setVideos(videoDocs);
               setStats((prev) => ({
                 ...prev,
-                totalVideos: videosJson.data.docs.length,
-                totalViews: videosJson.data.docs.reduce((sum, v) => sum + (v.views || 0), 0),
+                totalVideos: videoDocs.length,
+                totalViews: videoDocs.reduce((sum, v) => sum + (v.views || 0), 0),
               }));
             }
           } catch (err) {
@@ -83,7 +84,7 @@ export const Profile = () => {
             );
             const pubJson = await pubVideosRes.json();
             if (pubJson.data?.docs && isMounted) {
-              setVideos(pubJson.data.docs);
+              setVideos(Array.isArray(pubJson.data.docs) ? pubJson.data.docs : []);
             }
           } catch (err) {
             console.warn("Public videos fetch error:", err);
@@ -108,7 +109,7 @@ export const Profile = () => {
   };
 
   const formatDuration = (seconds) => {
-    if (!seconds) return "0:00";
+    if (!seconds || isNaN(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -116,11 +117,17 @@ export const Profile = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return "Recently joined";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return "Recently joined";
+      return d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return "Recently joined";
+    }
   };
 
   const handleDeleteClick = (e, video) => {
@@ -203,9 +210,15 @@ export const Profile = () => {
   }
 
   const activeUser = profileData || currentUser || {};
+  const displayName = activeUser?.fullName || activeUser?.username || "PulseCast Creator";
+  const displayUsername = activeUser?.username || "creator";
   const subscriberDisplay = profileData?.subscribersCount !== undefined
     ? profileData.subscribersCount
-    : stats.totalSubscribers;
+    : (stats?.totalSubscribers ?? 0);
+  const safeVideos = Array.isArray(videos) ? videos : [];
+  const safeVideosCount = safeVideos.length;
+  const safeViews = (stats?.totalViews ?? 0).toLocaleString();
+  const safeLikes = (stats?.totalLikes ?? 0).toLocaleString();
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-16">
@@ -243,7 +256,7 @@ export const Profile = () => {
       <div className="relative rounded-3xl overflow-hidden glass-panel border border-white/10 shadow-2xl">
         {/* Cover Banner */}
         <div className="h-44 sm:h-56 w-full relative bg-gradient-to-r from-indigo-950 via-slate-900 to-violet-950 overflow-hidden">
-          {activeUser.coverImage ? (
+          {activeUser?.coverImage ? (
             <img
               src={activeUser.coverImage}
               alt="Cover Banner"
@@ -260,15 +273,15 @@ export const Profile = () => {
           {/* Avatar and Basic Info */}
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
             <div className="relative flex-shrink-0">
-              {activeUser.avatar ? (
+              {activeUser?.avatar ? (
                 <img
                   src={activeUser.avatar}
-                  alt={activeUser.fullName}
+                  alt={displayName}
                   className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl object-cover ring-4 ring-slate-950 shadow-2xl border border-white/20 bg-slate-900"
                 />
               ) : (
                 <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-tr from-indigo-500 to-violet-600 ring-4 ring-slate-950 shadow-2xl flex items-center justify-center text-white text-3xl font-black">
-                  {activeUser.fullName?.charAt(0) || "U"}
+                  {(displayName || "U").charAt(0).toUpperCase()}
                 </div>
               )}
               <span className="absolute bottom-1 right-1 w-5 h-5 bg-emerald-500 border-2 border-slate-950 rounded-full shadow"></span>
@@ -277,7 +290,7 @@ export const Profile = () => {
             <div className="space-y-1.5 pt-2">
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                  {activeUser.fullName || activeUser.username || "PulseCast Creator"}
+                  {displayName}
                 </h1>
                 <span className="text-indigo-400" title="Verified Creator">
                   <svg className="w-5 h-5 fill-current" viewBox="0 0 20 20">
@@ -287,12 +300,12 @@ export const Profile = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-medium">
-                <span className="text-slate-300 font-mono">@{activeUser.username}</span>
+                <span className="text-slate-300 font-mono">@{displayUsername}</span>
                 <span>•</span>
                 <span>{subscriberDisplay} {subscriberDisplay === 1 ? "Subscriber" : "Subscribers"}</span>
                 <span>•</span>
-                <span>{videos.length} {videos.length === 1 ? "Video" : "Videos"}</span>
-                {activeUser.email && (
+                <span>{safeVideosCount} {safeVideosCount === 1 ? "Video" : "Videos"}</span>
+                {activeUser?.email && (
                   <>
                     <span>•</span>
                     <span className="text-slate-400 truncate max-w-[200px]">{activeUser.email}</span>
@@ -354,7 +367,7 @@ export const Profile = () => {
             </svg>
           </div>
           <div>
-            <p className="text-2xl font-black text-white">{videos.length}</p>
+            <p className="text-2xl font-black text-white">{safeVideosCount}</p>
             <p className="text-xs text-slate-400 font-medium">Uploaded Videos</p>
           </div>
         </div>
@@ -381,7 +394,7 @@ export const Profile = () => {
             </svg>
           </div>
           <div>
-            <p className="text-2xl font-black text-white">{stats.totalViews.toLocaleString()}</p>
+            <p className="text-2xl font-black text-white">{safeViews}</p>
             <p className="text-xs text-slate-400 font-medium">Channel Views</p>
           </div>
         </div>
@@ -394,7 +407,7 @@ export const Profile = () => {
             </svg>
           </div>
           <div>
-            <p className="text-2xl font-black text-white">{stats.totalLikes.toLocaleString()}</p>
+            <p className="text-2xl font-black text-white">{safeLikes}</p>
             <p className="text-xs text-slate-400 font-medium">Likes Received</p>
           </div>
         </div>
@@ -410,7 +423,7 @@ export const Profile = () => {
               : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <span>Uploaded Videos ({videos.length})</span>
+          <span>Uploaded Videos ({safeVideosCount})</span>
           {activeTab === "videos" && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-full"></div>
           )}
@@ -445,7 +458,7 @@ export const Profile = () => {
                 </div>
               ))}
             </div>
-          ) : videos.length === 0 ? (
+          ) : safeVideosCount === 0 ? (
             /* Empty State */
             <div className="glass-panel rounded-3xl p-16 text-center space-y-5 border border-white/5">
               <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 shadow-inner">
@@ -476,7 +489,7 @@ export const Profile = () => {
           ) : (
             /* Videos Grid */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {videos.map((video) => (
+              {safeVideos.map((video) => (
                 <div
                   key={video._id}
                   className="group glass-card rounded-2xl overflow-hidden flex flex-col justify-between border border-white/5 hover:border-indigo-500/40 transition-all duration-300 relative"
@@ -491,7 +504,7 @@ export const Profile = () => {
                       <div className="relative aspect-video overflow-hidden bg-slate-950">
                         <img
                           src={video.thumbnail || "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800"}
-                          alt={video.title}
+                          alt={video.title || "Video thumbnail"}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                         />
@@ -556,7 +569,7 @@ export const Profile = () => {
           <div className="space-y-2">
             <h3 className="text-lg font-bold text-white">Channel Description</h3>
             <p className="text-sm text-slate-300 leading-relaxed">
-              Welcome to {activeUser.fullName || activeUser.username}'s official PulseCast streaming channel.
+              Welcome to {displayName}'s official PulseCast streaming channel.
               Here you can discover high-definition video productions, real-time sync watch rooms, and engineering media showcases.
             </p>
           </div>
@@ -568,10 +581,10 @@ export const Profile = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/5 space-y-1">
                 <span className="text-slate-400">Username</span>
-                <p className="text-white font-mono font-semibold">@{activeUser.username}</p>
+                <p className="text-white font-mono font-semibold">@{displayUsername}</p>
               </div>
 
-              {activeUser.email && (
+              {activeUser?.email && (
                 <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/5 space-y-1">
                   <span className="text-slate-400">Contact Email</span>
                   <p className="text-white font-medium">{activeUser.email}</p>
@@ -585,7 +598,7 @@ export const Profile = () => {
 
               <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/5 space-y-1">
                 <span className="text-slate-400">Total Videos</span>
-                <p className="text-white font-semibold">{videos.length} videos published</p>
+                <p className="text-white font-semibold">{safeVideosCount} videos published</p>
               </div>
             </div>
           </div>
