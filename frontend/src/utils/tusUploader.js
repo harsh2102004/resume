@@ -9,6 +9,7 @@ export class TusUploader {
     this.onError = options.onError || (() => {});
 
     this.uploadUrl = options.uploadUrl || null;
+    this.headers = options.headers || {};
     this.offset = 0;
     this.isPaused = false;
     this.isAborted = false;
@@ -33,6 +34,7 @@ export class TusUploader {
             "Tus-Resumable": "1.0.0",
             "Upload-Length": String(this.file.size),
             "Upload-Metadata": this._encodeMetadata(),
+            ...this.headers,
           },
         });
 
@@ -95,6 +97,9 @@ export class TusUploader {
     xhr.setRequestHeader("Tus-Resumable", "1.0.0");
     xhr.setRequestHeader("Upload-Offset", String(this.offset));
     xhr.setRequestHeader("Content-Type", "application/offset+octet-stream");
+    for (const [k, v] of Object.entries(this.headers)) {
+      xhr.setRequestHeader(k, v);
+    }
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) {

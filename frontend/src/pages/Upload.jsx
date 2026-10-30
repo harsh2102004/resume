@@ -1,8 +1,12 @@
 import React, { useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { TusUploader } from "../utils/tusUploader";
 
 export const Upload = () => {
+  const { isAuthenticated, token, user } = useAuth();
+  const navigate = useNavigate();
+
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -17,6 +21,43 @@ export const Upload = () => {
   const [errorMessage, setErrorMessage] = useState("");
 
   const uploaderRef = useRef(null);
+
+  // If not logged in, show authentication barrier
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-[65vh] px-4">
+        <div className="w-full max-w-md glass-panel p-8 rounded-2xl border border-white/10 shadow-2xl text-center space-y-6">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shadow-lg">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-white tracking-tight">Sign In Required</h2>
+            <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto">
+              You must be signed in to your PulseCast account to upload videos and publish streams.
+            </p>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <Link
+              to="/login?redirect=/upload&mode=login"
+              className="glow-btn block w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all shadow-md shadow-indigo-600/30"
+            >
+              Sign In to Upload
+            </Link>
+            <Link
+              to="/login?redirect=/upload&mode=signup"
+              className="block w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-white/10 transition-colors"
+            >
+              Create New Account
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -60,7 +101,7 @@ export const Upload = () => {
   const handleStartUpload = (e) => {
     e.preventDefault();
     if (!file) {
-      setErrorMessage("Please choose or drag a video file to upload.");
+      setErrorMessage("Please select or drop a video file to upload.");
       return;
     }
 
@@ -72,11 +113,15 @@ export const Upload = () => {
     const uploader = new TusUploader(file, {
       endpoint: "http://localhost:8000/api/v1/videos/resumable-upload",
       chunkSize: 2 * 1024 * 1024,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
       metadata: {
         filename: file.name,
         filetype: file.type || "video/mp4",
         title: title || file.name,
         description: description || "",
+        userId: user?._id || "",
       },
       onProgress: ({ percentage, loaded, total }) => {
         setUploadProgress(percentage);
@@ -113,12 +158,21 @@ export const Upload = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-12">
-      {/* Page Title */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Upload Video</h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Publish your video to PulseCast with automatic multi-quality processing.
-        </p>
+      {/* Page Title & User Badge */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Upload Video</h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Publish your video to PulseCast with automatic multi-bitrate processing.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-900/80 border border-white/5 text-xs text-slate-300">
+          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-[10px] font-bold text-white">
+            {user?.fullName?.charAt(0) || "U"}
+          </div>
+          <span>Uploading as <strong className="text-white">{user?.username}</strong></span>
+        </div>
       </div>
 
       {uploadSuccess ? (
@@ -129,7 +183,7 @@ export const Upload = () => {
           <div className="space-y-1">
             <h2 className="text-xl font-bold text-white">Upload Complete</h2>
             <p className="text-sm text-slate-300">
-              Your video has been uploaded and is now processing for high definition streaming.
+              Your video has been uploaded and registered to your channel.
             </p>
           </div>
 
@@ -204,6 +258,7 @@ export const Upload = () => {
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Title that describes your video"
                 disabled={isUploading}
+                required
                 className="w-full bg-slate-900 text-white placeholder-slate-500 text-sm px-4 py-3 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 transition-all"
               />
             </div>

@@ -24,14 +24,25 @@ app.use(cors({
     ]
 }));
 
-app.all("/api/v1/videos/resumable-upload*", (req, res) => {
-    return tusServer.handle(req, res);
-});
-
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
+
+app.all("/api/v1/videos/resumable-upload*", (req, res) => {
+    // Only logged in users can initiate video uploads
+    if (req.method === "POST") {
+        const token = req.cookies?.accessToken || req.headers["authorization"]?.replace("Bearer ", "");
+        if (!token) {
+            return res.status(401).json({
+                statusCode: 401,
+                message: "Authentication required. Please sign in to upload videos.",
+                success: false
+            });
+        }
+    }
+    return tusServer.handle(req, res);
+});
 
 // Routes import
 import userRouter from "./routes/user.routes.js";

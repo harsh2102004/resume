@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Watch from "./pages/Watch";
@@ -9,8 +10,9 @@ import Login from "./pages/Login";
 
 function App() {
   return (
-    <Router>
-      <div className="min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
         <Navbar />
 
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -49,6 +51,7 @@ function App() {
         </footer>
       </div>
     </Router>
+  </AuthProvider>
   );
 }
 
