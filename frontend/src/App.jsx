@@ -23,29 +23,28 @@ function App() {
           </Routes>
         </main>
 
-        {/* Global Engineering Footer */}
-        <footer className="border-t border-white/5 bg-slate-950/80 backdrop-blur-md py-8 mt-12 text-xs text-slate-400">
+        {/* Clean, Professional Footer */}
+        <footer className="border-t border-white/5 bg-slate-950/60 backdrop-blur-md py-8 mt-12 text-xs text-slate-400">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold">
-                P
-              </div>
-              <div>
-                <span className="font-bold text-slate-200">PulseCast Media Engine</span>
-                <span className="text-slate-500 ml-2">Distributed Video Streaming Pipeline</span>
-              </div>
+              <Link to="/" className="flex items-center gap-2 group">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white text-xs font-bold shadow-md">
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+                <span className="font-extrabold text-sm text-white tracking-tight">PulseCast</span>
+              </Link>
+              <span className="text-slate-600">|</span>
+              <span className="text-slate-400">Next-generation video streaming & real-time watch rooms</span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] text-slate-400">
-              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">HLS RFC 8216</span>
-              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">HTTP 206 Range</span>
-              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">TUS v1.0 Resumable</span>
-              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">WebSocket Sync</span>
+            <div className="flex items-center gap-6 text-xs text-slate-400">
+              <Link to="/" className="hover:text-white transition-colors">Explore</Link>
+              <Link to="/upload" className="hover:text-white transition-colors">Upload</Link>
+              <Link to="/watch-party" className="hover:text-white transition-colors">Watch Party</Link>
+              <span className="text-slate-500">© 2026 PulseCast, Inc.</span>
             </div>
-
-            <p className="text-slate-500">
-              Engineered by <span className="text-slate-300 font-medium">Harsh Pratap Singh</span>
-            </p>
           </div>
         </footer>
       </div>
