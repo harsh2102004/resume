@@ -94,30 +94,89 @@ export const Navbar = () => {
         </button>
 
         {isAuthenticated && user ? (
-          /* User is logged in: show profile and logout */
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-white/5">
-              {user.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt={user.fullName}
-                  className="w-6 h-6 rounded-full object-cover border border-white/10"
-                />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-[10px] font-bold text-white">
-                  {user.fullName?.charAt(0) || "U"}
-                </div>
-              )}
-              <span className="text-xs font-semibold text-white hidden sm:inline">
-                {user.fullName || user.username}
-              </span>
-            </div>
-            <button
-              onClick={logout}
-              className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 transition-colors cursor-pointer"
+          /* User is logged in: interactive profile avatar */
+          <div className="relative group">
+            <Link
+              to="/profile"
+              id="user-profile-button"
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800/90 border border-white/10 hover:border-indigo-500/50 shadow-md transition-all duration-200 group cursor-pointer"
+              title="Click to view your profile and uploaded videos"
             >
-              Sign Out
-            </button>
+              <div className="relative">
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.fullName}
+                    className="w-7 h-7 rounded-full object-cover border border-white/20 group-hover:scale-105 transition-transform"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
+                    {user.fullName?.charAt(0) || "U"}
+                  </div>
+                )}
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-900 rounded-full"></span>
+              </div>
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="text-xs font-bold text-white group-hover:text-indigo-400 transition-colors leading-tight">
+                  {user.fullName || user.username}
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono leading-none">
+                  @{user.username}
+                </span>
+              </div>
+            </Link>
+
+            {/* Dropdown Menu on Hover / Focus */}
+            <div className="absolute right-0 top-full mt-2 w-56 p-2 rounded-2xl glass-panel border border-white/10 shadow-2xl opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
+              <div className="px-3 py-2.5 border-b border-white/5 space-y-0.5">
+                <p className="text-xs font-bold text-white truncate">{user.fullName}</p>
+                <p className="text-[11px] text-slate-400 truncate">@{user.username}</p>
+              </div>
+
+              <div className="py-1.5 space-y-0.5 text-xs">
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:text-white hover:bg-white/10 transition-colors font-medium"
+                >
+                  <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span>Your Channel & Videos</span>
+                </Link>
+
+                <Link
+                  to="/upload"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:text-white hover:bg-white/10 transition-colors font-medium"
+                >
+                  <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <span>Upload Video</span>
+                </Link>
+
+                <Link
+                  to="/watch-party"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:text-white hover:bg-white/10 transition-colors font-medium"
+                >
+                  <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span>Watch Party</span>
+                </Link>
+              </div>
+
+              <div className="pt-1.5 border-t border-white/5">
+                <button
+                  onClick={logout}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-500/10 transition-colors font-semibold cursor-pointer text-left"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           /* User is logged out: show Sign In and Sign Up */

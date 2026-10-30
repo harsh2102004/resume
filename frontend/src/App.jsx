@@ -7,6 +7,7 @@ import Watch from "./pages/Watch";
 import Upload from "./pages/Upload";
 import WatchParty from "./pages/WatchParty";
 import Login from "./pages/Login";
+import Profile from "./pages/Profile";
 
 function App() {
   return (
@@ -22,6 +23,8 @@ function App() {
             <Route path="/upload" element={<Upload />} />
             <Route path="/watch-party" element={<WatchParty />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/channel/:username" element={<Profile />} />
           </Routes>
         </main>
 

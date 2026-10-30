@@ -222,17 +222,31 @@ export const Watch = () => {
             <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-white/5">
               {/* Creator Info */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
-                  {video?.owner?.fullName?.charAt(0) || "P"}
-                </div>
-                <div>
-                  <h3 className="font-bold text-white text-sm">
-                    {video?.owner?.fullName || "PulseCast Channel"}
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    {formatSubscribers(subscriberCount)}
-                  </p>
-                </div>
+                <Link
+                  to={video?.owner?.username ? `/channel/${video.owner.username}` : "/profile"}
+                  className="flex items-center gap-3 group cursor-pointer"
+                  title="View creator channel & videos"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:ring-2 group-hover:ring-indigo-500/70 transition-all overflow-hidden">
+                    {video?.owner?.avatar ? (
+                      <img
+                        src={video.owner.avatar}
+                        alt={video.owner.fullName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      video?.owner?.fullName?.charAt(0) || "P"
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-sm group-hover:text-indigo-400 transition-colors">
+                      {video?.owner?.fullName || "PulseCast Channel"}
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      {formatSubscribers(subscriberCount)}
+                    </p>
+                  </div>
+                </Link>
 
                 {/* Working Subscribe Button */}
                 <button
