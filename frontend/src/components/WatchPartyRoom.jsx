@@ -16,7 +16,6 @@ export const WatchPartyRoom = ({
   const [participants, setParticipants] = useState([]);
   const [messages, setMessages] = useState([]);
   const [inputMsg, setInputMsg] = useState("");
-  const [isSynced, setIsSynced] = useState(true);
 
   useEffect(() => {
     const socket = io(WS_BASE_URL, {
@@ -25,7 +24,6 @@ export const WatchPartyRoom = ({
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      setIsSynced(true);
       socket.emit("join-room", { roomId, username });
     });
 
@@ -42,7 +40,7 @@ export const WatchPartyRoom = ({
       }
     });
 
-    socket.on("sync-action", ({ action, currentTime, senderName, serverTimestamp }) => {
+    socket.on("sync-action", ({ action, currentTime, serverTimestamp }) => {
       const video = document.querySelector("video");
       if (!video) return;
 
@@ -81,7 +79,7 @@ export const WatchPartyRoom = ({
       }
     });
 
-    socket.on("user-joined", ({ user, participants }) => {
+    socket.on("user-joined", ({ participants }) => {
       setParticipants(participants);
     });
 

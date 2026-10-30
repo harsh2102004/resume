@@ -478,6 +478,8 @@ export const Watch = () => {
             </div>
           </div>
         </div>
+      )}
+
       {/* Delete Confirmation Modal for Video Owner */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">

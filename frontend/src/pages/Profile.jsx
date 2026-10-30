@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL } from "../config/api";
 
 export const Profile = () => {
   const { username: paramUsername } = useParams();
-  const navigate = useNavigate();
-  const { user: currentUser, token, isAuthenticated, logout } = useAuth();
+  const { user: currentUser, token, isAuthenticated } = useAuth();
 
   const isOwnProfile = !paramUsername || paramUsername === currentUser?.username;
 
@@ -591,6 +590,8 @@ export const Profile = () => {
             </div>
           </div>
         </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {deleteModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
