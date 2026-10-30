@@ -1,48 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
-// High quality sample videos
-const DEMO_VIDEOS = [
-  {
-    _id: "demo-hls-video",
-    title: "Big Buck Bunny — Open Animation Film",
-    description: "A large, lovable rabbit deals with bullying forest creatures in this classic open-source animated comedy.",
-    videoFile: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-    thumbnail: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&auto=format&fit=crop&q=80",
-    views: 14200,
-    duration: 596,
-    quality: "1080p",
-    category: "Animation",
-    owner: { fullName: "Open Media Project", username: "openmedia", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" },
-    createdAt: new Date().toISOString(),
-  },
-  {
-    _id: "demo-sample-2",
-    title: "Pacific Coastline — 4K Tropical Beach & Sunset Waves",
-    description: "Relaxing high-definition ocean waves rolling against the pristine sandy beach during golden hour.",
-    videoFile: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-    thumbnail: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80",
-    views: 8900,
-    duration: 15,
-    quality: "4K HDR",
-    category: "Nature",
-    owner: { fullName: "Nature Horizon", username: "naturehorizon", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" },
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    _id: "demo-sample-3",
-    title: "Metropolis Lights — Urban Night Cityscape & Drone Flight",
-    description: "Cinematic night aerial flight through illuminated downtown skyscrapers and vibrant highway traffic.",
-    videoFile: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-    thumbnail: "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=800&auto=format&fit=crop&q=80",
-    views: 23100,
-    duration: 15,
-    quality: "4K",
-    category: "Travel",
-    owner: { fullName: "SkyDrone Studios", username: "skydrone", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80" },
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-  },
-];
+import { DEMO_VIDEOS } from "../data/demoVideos";
 
 const CATEGORIES = [
   "All",
@@ -64,11 +22,12 @@ export const Home = () => {
       try {
         const res = await fetch("http://localhost:8000/api/v1/videos");
         const json = await res.json();
-        if (json.data?.docs && json.data.docs.length > 0) {
-          setVideos(json.data.docs);
-        } else {
-          setVideos(DEMO_VIDEOS);
-        }
+        const apiDocs = json.data?.docs || [];
+        const validApiDocs = apiDocs.filter((v) => v.videoFile && !v.mimeType?.startsWith("image/"));
+        // Combine all 20 demo videos with any newly published user videos
+        const combined = [...validApiDocs, ...DEMO_VIDEOS];
+        const unique = Array.from(new Map(combined.map((v) => [String(v._id), v])).values());
+        setVideos(unique);
       } catch (err) {
         setVideos(DEMO_VIDEOS);
       } finally {

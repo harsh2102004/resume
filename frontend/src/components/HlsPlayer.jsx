@@ -36,6 +36,7 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
   // Playback state
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Storyboard state
   const [cues, setCues] = useState([]);
@@ -118,6 +119,9 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
           label: `${level.height}p (${Math.round(level.bitrate / 1000)} kbps)`,
         }));
         setQualities(availableLevels);
+        video.play().catch(() => {
+          // Autoplay policy prevented unmuted playback, user will click to play
+        });
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
@@ -131,6 +135,8 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
               break;
             default:
               hls.destroy();
+              video.src = src;
+              video.load();
               break;
           }
         }
@@ -139,6 +145,10 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
       hlsRef.current = hls;
     } else {
       video.src = src;
+      video.load();
+      video.play().catch(() => {
+        // Autoplay policy prevented playback, user can click play
+      });
     }
 
     return () => {
@@ -148,6 +158,16 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
       }
     };
   }, [src]);
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch((err) => console.log("Play interrupted:", err));
+    } else {
+      video.pause();
+    }
+  };
 
   const handleTimeUpdate = (e) => {
     const video = e.target;
@@ -212,10 +232,27 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
         poster={poster}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        preload="auto"
         className="w-full aspect-video object-contain bg-black"
         playsInline
         controls
       />
+
+      {/* Centered Play Button Overlay when paused */}
+      {!isPlaying && (
+        <div
+          onClick={togglePlay}
+          className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] cursor-pointer group-hover:bg-black/25 transition-all z-10"
+        >
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-600/90 hover:bg-indigo-500 text-white flex items-center justify-center shadow-2xl hover:scale-110 transition-all duration-200 border border-white/20">
+            <svg className="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        </div>
+      )}
 
       {/* Adaptive Quality Switcher Overlay (for HLS streams) */}
       {isHls && qualities.length > 0 && (

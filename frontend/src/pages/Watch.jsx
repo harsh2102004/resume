@@ -2,69 +2,91 @@ import React, { useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import HlsPlayer from "../components/HlsPlayer";
 import CommentsSection from "../components/CommentsSection";
-
-const RELATED_STREAMS = [
-  {
-    _id: "demo-hls-video",
-    title: "Big Buck Bunny — Open Animation Film",
-    thumbnail: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=400&auto=format&fit=crop&q=80",
-    duration: 596,
-    views: "14.2K",
-    owner: { _id: "channel-1", fullName: "Open Media Project", username: "openmedia", subscribers: 14200 },
-  },
-  {
-    _id: "demo-sample-2",
-    title: "Pacific Coastline — 4K Tropical Beach & Sunset Waves",
-    thumbnail: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&auto=format&fit=crop&q=80",
-    duration: 15,
-    views: "8.9K",
-    owner: { _id: "channel-2", fullName: "Nature Horizon", username: "naturehorizon", subscribers: 8900 },
-  },
-  {
-    _id: "demo-sample-3",
-    title: "Metropolis Lights — Urban Night Cityscape & Drone Flight",
-    thumbnail: "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=400&auto=format&fit=crop&q=80",
-    duration: 15,
-    views: "23.1K",
-    owner: { _id: "channel-3", fullName: "SkyDrone Studios", username: "skydrone", subscribers: 23100 },
-  },
-];
+import { DEMO_VIDEOS } from "../data/demoVideos";
+import { useAuth } from "../context/AuthContext";
 
 export const Watch = () => {
   const { videoId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, token, isAuthenticated } = useAuth();
 
-  const [video, setVideo] = useState(location.state?.video || null);
-  const [loading, setLoading] = useState(!location.state?.video);
+  const [video, setVideo] = useState(
+    location.state?.video?._id === videoId
+      ? location.state.video
+      : DEMO_VIDEOS.find((s) => s._id === videoId) || null
+  );
+  const [loading, setLoading] = useState(!video);
   const [likes, setLikes] = useState(1420);
   const [hasLiked, setHasLiked] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState(14200);
   const [copied, setCopied] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Sync video and subscription state
+  // Deterministic base like count for videos
+  const getBaseLikes = (vid) => {
+    if (vid?.likes !== undefined && vid?.likes > 0) return vid.likes;
+    let hash = 0;
+    const str = String(videoId || "video");
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return 1200 + Math.abs(hash % 3800);
+  };
+
+  // Sync video metadata
   useEffect(() => {
+    let isMounted = true;
     const fetchVideo = async () => {
       try {
         const res = await fetch(`http://localhost:8000/api/v1/videos/${videoId}`);
         const json = await res.json();
-        if (json.data) {
-          setVideo(json.data);
-        } else {
-          const found = RELATED_STREAMS.find((s) => s._id === videoId);
-          if (found) setVideo(found);
+        if (isMounted) {
+          if (json.data) {
+            setVideo(json.data);
+          } else {
+            const found = DEMO_VIDEOS.find((s) => s._id === videoId);
+            if (found) setVideo(found);
+          }
         }
       } catch (err) {
-        const found = RELATED_STREAMS.find((s) => s._id === videoId);
-        if (found) setVideo(found);
+        if (isMounted) {
+          const found = DEMO_VIDEOS.find((s) => s._id === videoId);
+          if (found) setVideo(found);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchVideo();
+    return () => {
+      isMounted = false;
+    };
   }, [videoId]);
+
+  // Restore persistent likes and liked status
+  useEffect(() => {
+    if (!videoId) return;
+
+    // 1. Retrieve persisted like count
+    const savedLikes = localStorage.getItem(`pulsecast_likes_${videoId}`);
+    if (savedLikes !== null) {
+      setLikes(parseInt(savedLikes, 10));
+    } else {
+      setLikes(getBaseLikes(video));
+    }
+
+    // 2. Retrieve user's specific liked status
+    if (user?._id) {
+      const userLiked = localStorage.getItem(`pulsecast_liked_${user._id}_${videoId}`) === "true";
+      setHasLiked(userLiked);
+    } else {
+      setHasLiked(false);
+    }
+  }, [videoId, user?._id]);
 
   // Load channel subscription status
   useEffect(() => {
@@ -86,21 +108,21 @@ export const Watch = () => {
     );
   }
 
-  // Determine media URL
-  const videoSrc = video?.videoFile?.startsWith("http")
-    ? video.videoFile
-    : video?.videoFile
-    ? `http://localhost:8000${video.videoFile}`
-    : videoId === "demo-sample-2"
-    ? "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-    : videoId === "demo-sample-3"
-    ? "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
-    : "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+  // Determine media URL accurately for the current videoId
+  const currentVideo = (video && String(video._id) === String(videoId))
+    ? video
+    : DEMO_VIDEOS.find((s) => s._id === videoId);
 
-  const vttSrc = video?.storyboardVtt
-    ? video.storyboardVtt.startsWith("http")
-      ? video.storyboardVtt
-      : `http://localhost:8000${video.storyboardVtt}`
+  const videoSrc = currentVideo?.videoFile?.startsWith("http")
+    ? currentVideo.videoFile
+    : currentVideo?.videoFile
+    ? `http://localhost:8000${currentVideo.videoFile}`
+    : "https://vjs.zencdn.net/v/oceans.mp4";
+
+  const vttSrc = currentVideo?.storyboardVtt
+    ? currentVideo.storyboardVtt.startsWith("http")
+      ? currentVideo.storyboardVtt
+      : `http://localhost:8000${currentVideo.storyboardVtt}`
     : null;
 
   const handleStartWatchParty = () => {
@@ -114,13 +136,37 @@ export const Watch = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleLike = () => {
-    if (!hasLiked) {
-      setLikes((prev) => prev + 1);
-      setHasLiked(true);
-    } else {
-      setLikes((prev) => prev - 1);
-      setHasLiked(false);
+  const handleLike = async () => {
+    // Gating: only logged-in users can like
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    const nextHasLiked = !hasLiked;
+    const nextLikes = nextHasLiked ? likes + 1 : Math.max(0, likes - 1);
+
+    setHasLiked(nextHasLiked);
+    setLikes(nextLikes);
+
+    // Persist immediately in localStorage
+    localStorage.setItem(`pulsecast_likes_${videoId}`, String(nextLikes));
+    if (user?._id) {
+      localStorage.setItem(`pulsecast_liked_${user._id}_${videoId}`, String(nextHasLiked));
+    }
+
+    // Synchronize to backend if token available
+    if (token) {
+      try {
+        await fetch(`http://localhost:8000/api/v1/likes/toggle/v/${videoId}`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      } catch (err) {
+        console.warn("Backend like sync warning:", err);
+      }
     }
   };
 
@@ -277,7 +323,7 @@ export const Watch = () => {
           </div>
 
           <div className="space-y-3">
-            {RELATED_STREAMS.map((item) => (
+            {DEMO_VIDEOS.filter((v) => v._id !== videoId).slice(0, 7).map((item) => (
               <Link
                 key={item._id}
                 to={`/watch/${item._id}`}
@@ -327,6 +373,50 @@ export const Watch = () => {
           </div>
         </div>
       </div>
+
+      {/* Sign In Required Modal for Liking */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative">
+            <button
+              onClick={() => setShowAuthModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 transition-colors cursor-pointer"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mx-auto shadow-inner">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+              </svg>
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h3 className="text-lg font-bold text-white">Sign in to like this video</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Join PulseCast to like videos, save them to your library, and engage with creator communities.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5 pt-2">
+              <button
+                onClick={() => navigate(`/login?redirect=/watch/${videoId}&mode=login`)}
+                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/30 cursor-pointer text-center"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => setShowAuthModal(false)}
+                className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all cursor-pointer text-center"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
