@@ -6,12 +6,17 @@ import path from "path";
 import { app } from "../src/app.js";
 import { generateSignedStreamUrl, verifyStreamSignature } from "../src/utils/mediaSecurity.js";
 
-const TEST_PORT = 9876;
+let TEST_PORT;
 let server;
 
 test.before(async () => {
     server = http.createServer(app);
-    await new Promise((resolve) => server.listen(TEST_PORT, resolve));
+    await new Promise((resolve) => {
+        server.listen(0, "127.0.0.1", () => {
+            TEST_PORT = server.address().port;
+            resolve();
+        });
+    });
 });
 
 test.after(async () => {
@@ -19,21 +24,21 @@ test.after(async () => {
 });
 
 test("GET /api/v1/healthcheck should return 200 OK", async () => {
-    const res = await fetch(`http://localhost:${TEST_PORT}/api/v1/healthcheck`);
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/healthcheck`);
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.equal(data.success, true);
 });
 
 test("TUS Protocol: OPTIONS discovery should declare TUS capabilities", async () => {
-    const res = await fetch(`http://localhost:${TEST_PORT}/api/v1/videos/resumable-upload`, {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/resumable-upload`, {
         method: "OPTIONS",
     });
     assert.equal(res.status, 204);
 });
 
 test("TUS Protocol: POST should reject unauthenticated uploads with 401", async () => {
-    const res = await fetch(`http://localhost:${TEST_PORT}/api/v1/videos/resumable-upload`, {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/resumable-upload`, {
         method: "POST",
         headers: {
             "Tus-Resumable": "1.0.0",
@@ -46,7 +51,7 @@ test("TUS Protocol: POST should reject unauthenticated uploads with 401", async 
 });
 
 test("TUS Protocol: POST should create a resumable upload session when authenticated", async () => {
-    const res = await fetch(`http://localhost:${TEST_PORT}/api/v1/videos/resumable-upload`, {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/resumable-upload`, {
         method: "POST",
         headers: {
             "Tus-Resumable": "1.0.0",
@@ -83,12 +88,12 @@ test("Media Security: Tampered signature returns HTTP 403 Forbidden", async () =
     const videoId = "64f1a2b3c4d5e6f7a8b9c0d1";
     const fakeSignature = "deadbeef1234567890abcdefdeadbeef1234567890abcdefdeadbeef12345678";
     const res = await fetch(
-        `http://localhost:${TEST_PORT}/api/v1/videos/stream/${videoId}?expires=${Date.now()}&signature=${fakeSignature}`
+        `http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${videoId}?expires=${Date.now()}&signature=${fakeSignature}`
     );
     assert.equal(res.status, 403);
 });
 
 test("HTTP 206 Streaming: Should return 400 for invalid video ObjectId format", async () => {
-    const res = await fetch(`http://localhost:${TEST_PORT}/api/v1/videos/stream/non-existent-id`);
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/non-existent-id`);
     assert.equal(res.status, 400);
 });

@@ -29,6 +29,10 @@ jobs:
         run: npm install
 
       - name: Run Backend Integration & Security Tests
+        env:
+          STREAM_SECRET: "ci_test_stream_secret_2026"
+          ACCESS_TOKEN_SECRET: "ci_test_access_token_secret_2026"
+          CORS_ORIGIN: "*"
         run: npm test
 
       - name: Install Frontend Dependencies
