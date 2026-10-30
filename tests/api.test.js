@@ -32,13 +32,27 @@ test("TUS Protocol: OPTIONS discovery should declare TUS capabilities", async ()
     assert.equal(res.status, 204);
 });
 
-test("TUS Protocol: POST should create a resumable upload session", async () => {
+test("TUS Protocol: POST should reject unauthenticated uploads with 401", async () => {
     const res = await fetch(`http://localhost:${TEST_PORT}/api/v1/videos/resumable-upload`, {
         method: "POST",
         headers: {
             "Tus-Resumable": "1.0.0",
             "Upload-Length": "2048",
             "Upload-Metadata": "filename dGVzdC5tcDQ=",
+        },
+    });
+
+    assert.equal(res.status, 401);
+});
+
+test("TUS Protocol: POST should create a resumable upload session when authenticated", async () => {
+    const res = await fetch(`http://localhost:${TEST_PORT}/api/v1/videos/resumable-upload`, {
+        method: "POST",
+        headers: {
+            "Tus-Resumable": "1.0.0",
+            "Upload-Length": "2048",
+            "Upload-Metadata": "filename dGVzdC5tcDQ=",
+            "Authorization": "Bearer test-auth-token-pulsecast",
         },
     });
 
