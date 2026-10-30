@@ -119,3 +119,8 @@ dist
 
 # End of https://mrkandreev.name/snippets/gitignore-generator/#Node
 .DS_Store
+
+# Uploaded media files
+public/uploads/**
+!public/uploads/**/.gitkeep
+

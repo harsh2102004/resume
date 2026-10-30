@@ -1,16 +1,15 @@
-# React + Vite
+# PulseCast Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The official client application for the **PulseCast Media Engine**, built with React 19, Vite, Tailwind CSS, and HLS.js.
 
-Currently, two official plugins are available:
+## Features
+- **Adaptive Bitrate Streaming:** Powered by `hls.js` for automatic quality switching (360p to 1080p).
+- **Interactive Storyboard Scrubbing:** Visual frame preview on timeline hover using VTT cue manifests.
+- **Synchronized Watch Party:** Real-time multi-user synchronized video playback and live room messaging.
+- **Resumable Chunked Uploads:** Progress-tracked video uploads with pause/resume support over network drops.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Getting Started
+```bash
+npm install
+npm run dev
+```

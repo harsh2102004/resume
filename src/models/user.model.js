@@ -1,6 +1,6 @@
 import mongoose, {Schema} from "mongoose";
 import jwt from "jsonwebtoken"
-import bcrypt from "bcrypt"
+import { hashPassword, comparePassword } from "../utils/hash.js";
 
 const userSchema = new Schema(
     {
@@ -16,7 +16,7 @@ const userSchema = new Schema(
             type: String,
             required: true,
             unique: true,
-            lowecase: true,
+            lowercase: true,
             trim: true, 
         },
         fullName: {
@@ -26,11 +26,11 @@ const userSchema = new Schema(
             index: true
         },
         avatar: {
-            type: String, // cloudinary url
+            type: String, // cloudinary or static url
             required: true,
         },
         coverImage: {
-            type: String, // cloudinary url
+            type: String, // cloudinary or static url
         },
         watchHistory: [
             {
@@ -55,13 +55,13 @@ const userSchema = new Schema(
 userSchema.pre("save", async function (next) {
     if(!this.isModified("password")) return next();
 
-    this.password = await bcrypt.hash(this.password, 10)
-    next()
-})
+    this.password = await hashPassword(this.password, 10);
+    next();
+});
 
 userSchema.methods.isPasswordCorrect = async function(password){
-    return await bcrypt.compare(password, this.password)
-}
+    return await comparePassword(password, this.password);
+};
 
 userSchema.methods.generateAccessToken = function(){
     return jwt.sign(

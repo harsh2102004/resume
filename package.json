@@ -1,33 +1,49 @@
 {
-  "name": "chai-backend",
+  "name": "pulsecast-media-engine",
   "version": "1.0.0",
-  "description": "a backend at chai aur code channel - youtube",
+  "description": "High-performance distributed media streaming server featuring native HTTP 206 chunked streaming, resumable TUS uploads, FFmpeg HLS adaptive bitrate transcoding, and synchronized real-time watch rooms.",
   "type": "module",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js"
+    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js",
+    "start": "node -r dotenv/config src/index.js",
+    "test": "node --test tests/**/*.test.js"
   },
   "keywords": [
-    "javascript",
-    "backend",
-    "chai"
+    "video-streaming",
+    "media-engine",
+    "hls",
+    "ffmpeg",
+    "tus-resumable-upload",
+    "http-206-partial-content",
+    "websockets",
+    "watch-party",
+    "nodejs",
+    "express"
   ],
-  "author": "Hitesh Choudhary",
-  "license": "ISC",
+  "author": "Harsh Pratap Singh",
+  "license": "MIT",
   "devDependencies": {
     "nodemon": "^3.0.1",
     "prettier": "^3.0.3"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@tus/file-store": "^2.1.1",
+    "@tus/server": "^2.4.6",
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
     "cloudinary": "^1.41.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "fluent-ffmpeg": "^2.1.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.0",
     "mongoose-aggregate-paginate-v2": "^1.0.6",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.8.4"
   }
 }
