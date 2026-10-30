@@ -45,10 +45,19 @@ const uploadVideoOnCloudinary = async (localFilePath) => {
 
     configureCloudinary();
 
-    const response = await cloudinary.uploader.upload_large(localFilePath, {
-      resource_type: "video",
-      folder: "pulsecast/videos",
-      chunk_size: 6000000,
+    const response = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_large(
+        localFilePath,
+        {
+          resource_type: "video",
+          folder: "pulsecast/videos",
+          chunk_size: 6000000,
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
     });
 
     return response;
