@@ -10,7 +10,7 @@ const RELATED_STREAMS = [
     thumbnail: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=400&auto=format&fit=crop&q=80",
     duration: 596,
     views: "14.2K",
-    owner: { fullName: "Open Media Project" },
+    owner: { _id: "channel-1", fullName: "Open Media Project", username: "openmedia", subscribers: 14200 },
   },
   {
     _id: "demo-sample-2",
@@ -18,7 +18,7 @@ const RELATED_STREAMS = [
     thumbnail: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&auto=format&fit=crop&q=80",
     duration: 15,
     views: "8.9K",
-    owner: { fullName: "Nature Horizon" },
+    owner: { _id: "channel-2", fullName: "Nature Horizon", username: "naturehorizon", subscribers: 8900 },
   },
   {
     _id: "demo-sample-3",
@@ -26,7 +26,7 @@ const RELATED_STREAMS = [
     thumbnail: "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=400&auto=format&fit=crop&q=80",
     duration: 15,
     views: "23.1K",
-    owner: { fullName: "SkyDrone Studios" },
+    owner: { _id: "channel-3", fullName: "SkyDrone Studios", username: "skydrone", subscribers: 23100 },
   },
 ];
 
@@ -40,8 +40,10 @@ export const Watch = () => {
   const [likes, setLikes] = useState(1420);
   const [hasLiked, setHasLiked] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscriberCount, setSubscriberCount] = useState(14200);
   const [copied, setCopied] = useState(false);
 
+  // Sync video and subscription state
   useEffect(() => {
     const fetchVideo = async () => {
       try {
@@ -63,6 +65,17 @@ export const Watch = () => {
 
     fetchVideo();
   }, [videoId]);
+
+  // Load channel subscription status
+  useEffect(() => {
+    if (!video) return;
+    const channelKey = video?.owner?._id || video?.owner?.username || "default_channel";
+    const savedSub = localStorage.getItem(`pulsecast_sub_${channelKey}`) === "true";
+    setIsSubscribed(savedSub);
+
+    const baseSubs = video?.owner?.subscribers || 14200;
+    setSubscriberCount(savedSub ? baseSubs + 1 : baseSubs);
+  }, [video]);
 
   if (loading) {
     return (
@@ -111,6 +124,33 @@ export const Watch = () => {
     }
   };
 
+  const handleToggleSubscribe = async () => {
+    const channelKey = video?.owner?._id || video?.owner?.username || "default_channel";
+    const nextState = !isSubscribed;
+
+    setIsSubscribed(nextState);
+    setSubscriberCount((prev) => (nextState ? prev + 1 : Math.max(0, prev - 1)));
+
+    // Persist in localStorage
+    localStorage.setItem(`pulsecast_sub_${channelKey}`, nextState.toString());
+
+    // Send to backend API
+    try {
+      await fetch(`http://localhost:8000/api/v1/subscriptions/c/${channelKey}`, {
+        method: "POST",
+      });
+    } catch (err) {
+      // Offline fallback
+    }
+  };
+
+  const formatSubscribers = (num) => {
+    if (!num) return "0 subscribers";
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M subscribers`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K subscribers`;
+    return `${num} subscribers`;
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
       {/* 2-Column Responsive Layout */}
@@ -143,17 +183,32 @@ export const Watch = () => {
                   <h3 className="font-bold text-white text-sm">
                     {video?.owner?.fullName || "PulseCast Channel"}
                   </h3>
-                  <p className="text-xs text-slate-400">14.2K subscribers</p>
+                  <p className="text-xs text-slate-400">
+                    {formatSubscribers(subscriberCount)}
+                  </p>
                 </div>
+
+                {/* Working Subscribe Button */}
                 <button
-                  onClick={() => setIsSubscribed(!isSubscribed)}
-                  className={`ml-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  type="button"
+                  id="subscribe-button"
+                  onClick={handleToggleSubscribe}
+                  className={`ml-3 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
                     isSubscribed
-                      ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                      : "bg-white text-slate-900 hover:bg-slate-200 font-bold"
+                      ? "bg-slate-800 text-slate-200 hover:bg-slate-700 border border-white/10"
+                      : "bg-white text-slate-900 hover:bg-slate-100 font-bold shadow-md hover:scale-102"
                   }`}
                 >
-                  {isSubscribed ? "Subscribed" : "Subscribe"}
+                  {isSubscribed ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      <span>Subscribed</span>
+                    </>
+                  ) : (
+                    <span>Subscribe</span>
+                  )}
                 </button>
               </div>
 
