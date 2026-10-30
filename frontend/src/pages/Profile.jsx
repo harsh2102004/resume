@@ -21,6 +21,9 @@ export const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("videos"); // "videos" | "about"
   const [copiedLink, setCopiedLink] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, videoId: null, videoTitle: "" });
+  const [deleting, setDeleting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState({ text: "", type: "" });
 
   useEffect(() => {
     let isMounted = true;
@@ -121,6 +124,56 @@ export const Profile = () => {
     });
   };
 
+  const handleDeleteClick = (e, video) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeleteModal({
+      isOpen: true,
+      videoId: video._id,
+      videoTitle: video.title || "Untitled Video",
+    });
+  };
+
+  const confirmDeleteVideo = async () => {
+    if (!deleteModal.videoId) return;
+    setDeleting(true);
+    setStatusMessage({ text: "", type: "" });
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/videos/${deleteModal.videoId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to delete video");
+      }
+
+      setVideos((prev) => prev.filter((v) => v._id !== deleteModal.videoId));
+      setStats((prev) => ({
+        ...prev,
+        totalVideos: Math.max(0, prev.totalVideos - 1),
+      }));
+
+      setStatusMessage({
+        text: `"${deleteModal.videoTitle}" was successfully deleted.`,
+        type: "success",
+      });
+      setTimeout(() => setStatusMessage({ text: "", type: "" }), 4000);
+      setDeleteModal({ isOpen: false, videoId: null, videoTitle: "" });
+    } catch (err) {
+      setStatusMessage({
+        text: err.message || "Failed to delete video. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // If user is accessing /profile while logged out, show sign-in prompt
   if (isOwnProfile && !isAuthenticated && !currentUser) {
     return (
@@ -157,6 +210,36 @@ export const Profile = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-16">
+      {/* Status Feedback Toast */}
+      {statusMessage.text && (
+        <div
+          className={`p-4 rounded-2xl border text-sm font-semibold flex items-center justify-between shadow-xl transition-all ${
+            statusMessage.type === "success"
+              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+              : "bg-red-500/10 border-red-500/30 text-red-400"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {statusMessage.type === "success" ? (
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            )}
+            <span>{statusMessage.text}</span>
+          </div>
+          <button
+            onClick={() => setStatusMessage({ text: "", type: "" })}
+            className="text-slate-400 hover:text-white text-xs px-2 py-1 rounded-lg"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* 1. Header Banner & Identity */}
       <div className="relative rounded-3xl overflow-hidden glass-panel border border-white/10 shadow-2xl">
         {/* Cover Banner */}
@@ -395,57 +478,75 @@ export const Profile = () => {
             /* Videos Grid */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {videos.map((video) => (
-                <Link
+                <div
                   key={video._id}
-                  to={`/watch/${video._id}`}
-                  state={{ video }}
-                  className="group glass-card rounded-2xl overflow-hidden flex flex-col justify-between border border-white/5 hover:border-indigo-500/40 transition-all duration-300"
+                  className="group glass-card rounded-2xl overflow-hidden flex flex-col justify-between border border-white/5 hover:border-indigo-500/40 transition-all duration-300 relative"
                 >
-                  <div>
-                    {/* Thumbnail */}
-                    <div className="relative aspect-video overflow-hidden bg-slate-950">
-                      <img
-                        src={video.thumbnail || "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800"}
-                        alt={video.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-40 group-hover:opacity-20 transition-opacity"></div>
+                  <Link
+                    to={`/watch/${video._id}`}
+                    state={{ video }}
+                    className="flex-1 flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Thumbnail */}
+                      <div className="relative aspect-video overflow-hidden bg-slate-950">
+                        <img
+                          src={video.thumbnail || "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800"}
+                          alt={video.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-40 group-hover:opacity-20 transition-opacity"></div>
 
-                      {/* Play Hover Overlay */}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
-                          <svg className="w-5 h-5 fill-current translate-x-0.5" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
+                        {/* Play Hover Overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
+                            <svg className="w-5 h-5 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </div>
                         </div>
+
+                        {/* Duration Badge */}
+                        {video.duration ? (
+                          <span className="absolute bottom-2.5 right-2.5 bg-black/85 backdrop-blur-md text-white text-[11px] px-2 py-0.5 rounded-md font-medium">
+                            {formatDuration(video.duration)}
+                          </span>
+                        ) : null}
                       </div>
 
-                      {/* Duration Badge */}
-                      {video.duration ? (
-                        <span className="absolute bottom-2.5 right-2.5 bg-black/85 backdrop-blur-md text-white text-[11px] px-2 py-0.5 rounded-md font-medium">
-                          {formatDuration(video.duration)}
-                        </span>
-                      ) : null}
+                      {/* Content */}
+                      <div className="p-4 space-y-2">
+                        <h3 className="font-bold text-white text-sm line-clamp-2 group-hover:text-indigo-400 transition-colors leading-snug">
+                          {video.title}
+                        </h3>
+                        <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                          {video.description}
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Content */}
-                    <div className="p-4 space-y-2">
-                      <h3 className="font-bold text-white text-sm line-clamp-2 group-hover:text-indigo-400 transition-colors leading-snug">
-                        {video.title}
-                      </h3>
-                      <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                        {video.description}
-                      </p>
+                    {/* Metadata Footer */}
+                    <div className="p-4 pt-0 flex items-center justify-between text-xs text-slate-400 border-t border-white/5 mt-2">
+                      <span>{(video.views || 0).toLocaleString()} views</span>
+                      <span>{formatDate(video.createdAt)}</span>
                     </div>
-                  </div>
+                  </Link>
 
-                  {/* Metadata Footer */}
-                  <div className="p-4 pt-0 flex items-center justify-between text-xs text-slate-400 border-t border-white/5 mt-2">
-                    <span>{(video.views || 0).toLocaleString()} views</span>
-                    <span>{formatDate(video.createdAt)}</span>
-                  </div>
-                </Link>
+                  {/* Delete Button for channel owner */}
+                  {isOwnProfile && (
+                    <button
+                      type="button"
+                      title="Delete Video"
+                      onClick={(e) => handleDeleteClick(e, video)}
+                      className="absolute top-2.5 right-2.5 z-20 w-8 h-8 rounded-xl bg-red-600/90 hover:bg-red-500 text-white flex items-center justify-center shadow-xl transition-all transform hover:scale-110 opacity-80 hover:opacity-100 backdrop-blur-md cursor-pointer"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -487,6 +588,62 @@ export const Profile = () => {
                 <span className="text-slate-400">Total Videos</span>
                 <p className="text-white font-semibold">{videos.length} videos published</p>
               </div>
+            </div>
+          </div>
+        </div>
+      {/* Delete Confirmation Modal */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md glass-panel p-6 rounded-3xl border border-white/10 shadow-2xl space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-white">Delete Video?</h3>
+                <p className="text-xs text-slate-400">
+                  This video will be permanently removed from your channel.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-white/5">
+              <p className="text-xs text-slate-400 mb-1">Target Video:</p>
+              <p className="text-sm font-semibold text-white line-clamp-2">
+                {deleteModal.videoTitle}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setDeleteModal({ isOpen: false, videoId: null, videoTitle: "" })}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={confirmDeleteVideo}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {deleting ? (
+                  <>
+                    <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Delete Permanently</span>
+                )}
+              </button>
             </div>
           </div>
         </div>

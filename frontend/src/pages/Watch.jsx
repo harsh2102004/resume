@@ -24,6 +24,9 @@ export const Watch = () => {
   const [subscriberCount, setSubscriberCount] = useState(14200);
   const [copied, setCopied] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // Deterministic base like count for videos
   const getBaseLikes = (vid) => {
@@ -198,6 +201,35 @@ export const Watch = () => {
     return `${num} subscribers`;
   };
 
+  const isOwner = Boolean(
+    user?._id &&
+      (video?.owner?._id === user._id ||
+        video?.owner === user._id ||
+        (video?.owner?.username && user?.username && video.owner.username === user.username))
+  );
+
+  const handleDeleteVideo = async () => {
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/videos/${videoId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to delete video");
+      }
+      navigate("/profile");
+    } catch (err) {
+      setDeleteError(err.message || "Failed to delete video.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
       {/* 2-Column Responsive Layout */}
@@ -309,6 +341,21 @@ export const Watch = () => {
                   <span>🍿</span>
                   <span>Watch Party</span>
                 </button>
+
+                {/* Delete Video Button for Owner */}
+                {isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 transition-all cursor-pointer shadow-sm"
+                    title="Delete this video from your channel"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Delete</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -427,6 +474,68 @@ export const Watch = () => {
                 className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all cursor-pointer text-center"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      {/* Delete Confirmation Modal for Video Owner */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md glass-panel p-6 rounded-3xl border border-white/10 shadow-2xl space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-white">Delete this video?</h3>
+                <p className="text-xs text-slate-400">
+                  This video will be permanently removed from your channel and CDN.
+                </p>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-white/5">
+              <p className="text-xs text-slate-400 mb-1">Target Video:</p>
+              <p className="text-sm font-semibold text-white line-clamp-2">
+                {video?.title || "Untitled Video"}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleDeleteVideo}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {deleting ? (
+                  <>
+                    <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Delete Permanently</span>
+                )}
               </button>
             </div>
           </div>

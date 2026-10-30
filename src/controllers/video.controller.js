@@ -3,6 +3,8 @@ import fs from "fs";
 import path from "path";
 import { Video } from "../models/video.model.js";
 import { User } from "../models/user.model.js";
+import { Comment } from "../models/comment.model.js";
+import { Like } from "../models/like.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -273,6 +275,28 @@ const deleteVideo = asyncHandler(async (req, res) => {
             console.error("Error deleting local video file:", err);
         }
     }
+
+    // Cleanup Cloudinary asset if hosted on Cloudinary
+    if (video.videoFile && video.videoFile.includes("cloudinary.com")) {
+        try {
+            const matches = video.videoFile.match(/\/upload\/(?:v\d+\/)?(.+?)\.[^.]+$/);
+            if (matches && matches[1]) {
+                const publicId = matches[1];
+                const { v2: cloudinary } = await import("cloudinary");
+                cloudinary.uploader.destroy(publicId, { resource_type: "video" }).catch((e) => {
+                    console.warn("Cloudinary video destroy warning:", e.message);
+                });
+            }
+        } catch (cloudErr) {
+            console.warn("Could not destroy Cloudinary asset:", cloudErr.message);
+        }
+    }
+
+    // Remove associated comments and likes
+    await Promise.allSettled([
+        Comment.deleteMany({ video: videoId }),
+        Like.deleteMany({ video: videoId }),
+    ]);
 
     await Video.findByIdAndDelete(videoId);
 
