@@ -39,7 +39,7 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
 
   // Storyboard state
   const [cues, setCues] = useState([]);
-  const [hoverPreview, setHoverPreview] = useState(null); // { time, x, y, w, h, url, clientX }
+  const [hoverPreview, setHoverPreview] = useState(null);
 
   // 1. Fetch & parse WebVTT storyboard file if provided
   useEffect(() => {
@@ -149,7 +149,6 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
     };
   }, [src]);
 
-  // Handle video time updates
   const handleTimeUpdate = (e) => {
     const video = e.target;
     setCurrentTime(video.currentTime);
@@ -160,7 +159,6 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
     setDuration(e.target.duration);
   };
 
-  // Timeline hover scrub preview
   const handleTimelineMouseMove = (e) => {
     const rect = progressTrackRef.current?.getBoundingClientRect();
     if (!rect || !duration) return;
@@ -169,7 +167,6 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
     const hoverPercent = Math.max(0, Math.min(1, offsetX / rect.width));
     const targetTime = hoverPercent * duration;
 
-    // Locate active storyboard cue for this timestamp
     const matchingCue = cues.find(
       (c) => targetTime >= c.start && targetTime <= c.end
     );
@@ -209,21 +206,21 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
   };
 
   return (
-    <div className="relative rounded-2xl overflow-hidden bg-black shadow-2xl border border-gray-800 group select-none">
+    <div className="relative rounded-2xl overflow-hidden bg-black shadow-2xl border border-white/10 group select-none">
       <video
         ref={videoRef}
         poster={poster}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
-        className="w-full aspect-video object-contain"
+        className="w-full aspect-video object-contain bg-black"
         playsInline
         controls
       />
 
       {/* Adaptive Quality Switcher Overlay (for HLS streams) */}
       {isHls && qualities.length > 0 && (
-        <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2">
-          <span className="text-xs text-gray-300 font-medium">Quality:</span>
+        <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2 shadow-xl">
+          <span className="text-[11px] text-slate-300 font-mono font-medium">Quality:</span>
           <select
             value={currentQuality}
             onChange={(e) => {
@@ -233,9 +230,9 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
             }}
             className="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer"
           >
-            <option value={-1} className="bg-gray-900 text-white">Auto (ABR)</option>
+            <option value={-1} className="bg-slate-900 text-white">Auto (Adaptive)</option>
             {qualities.map((q) => (
-              <option key={q.id} value={q.id} className="bg-gray-900 text-white">
+              <option key={q.id} value={q.id} className="bg-slate-900 text-white">
                 {q.label}
               </option>
             ))}
@@ -245,7 +242,7 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
 
       {/* Interactive Storyboard Timeline Scrubber Bar */}
       {cues.length > 0 && (
-        <div className="absolute bottom-16 left-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute bottom-14 left-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
           {/* Floating Hover Thumbnail Preview */}
           {hoverPreview && (
             <div
@@ -254,7 +251,7 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
             >
               {hoverPreview.url ? (
                 <div
-                  className="rounded-lg border-2 border-white/40 shadow-2xl overflow-hidden bg-black"
+                  className="rounded-lg border-2 border-indigo-400/80 shadow-2xl overflow-hidden bg-black"
                   style={{
                     width: `${hoverPreview.w}px`,
                     height: `${hoverPreview.h}px`,
@@ -264,7 +261,7 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
                   }}
                 />
               ) : null}
-              <span className="mt-1 bg-black/90 text-white text-xs px-2 py-0.5 rounded font-mono font-medium shadow">
+              <span className="mt-1 bg-black/90 text-white text-xs px-2 py-0.5 rounded font-mono font-medium shadow border border-white/10">
                 {formatTime(hoverPreview.time)}
               </span>
             </div>
@@ -279,7 +276,7 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
             className="relative h-2 hover:h-3 w-full bg-white/20 hover:bg-white/30 rounded-full cursor-pointer transition-all flex items-center"
           >
             <div
-              className="h-full bg-gradient-to-r from-red-600 to-orange-500 rounded-full"
+              className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full shadow-lg"
               style={{
                 width: `${duration ? (currentTime / duration) * 100 : 0}%`,
               }}

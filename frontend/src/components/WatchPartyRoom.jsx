@@ -5,13 +5,12 @@ import HlsPlayer from "./HlsPlayer";
 export const WatchPartyRoom = ({
   roomId = "demo-room",
   username = "GuestUser",
-  videoSrc = "http://localhost:8000/api/v1/videos/stream/sample",
+  videoSrc = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
   storyboardVtt = null,
   poster = null,
 }) => {
   const socketRef = useRef(null);
   const isRemoteActionRef = useRef(false);
-  const videoElementRef = useRef(null);
 
   const [participants, setParticipants] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -81,7 +80,7 @@ export const WatchPartyRoom = ({
         // Hard snap if drift is > 1.5 seconds
         video.currentTime = serverTime;
         video.playbackRate = 1.0;
-        setSyncStatus("Hard Resync");
+        setSyncStatus("Hard Resync Applied");
       } else if (absDrift > 0.15) {
         // Soft rate adjust (drift compensation)
         video.playbackRate = drift < 0 ? 1.05 : 0.95;
@@ -153,7 +152,6 @@ export const WatchPartyRoom = ({
     }
   };
 
-  // Wire video DOM event listeners for play/pause/seek
   useEffect(() => {
     const video = document.querySelector("video");
     if (!video) return;
@@ -178,47 +176,53 @@ export const WatchPartyRoom = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-      {/* Left 2 Columns: Video & Room Details */}
-      <div className="lg:col-span-2 space-y-4">
-        <HlsPlayer
-          src={videoSrc}
-          poster={poster}
-          storyboardVtt={storyboardVtt}
-        />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Left 2 Columns: Video & Sync Engine Metrics */}
+      <div className="lg:col-span-2 space-y-5">
+        <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-black">
+          <HlsPlayer
+            src={videoSrc}
+            poster={poster}
+            storyboardVtt={storyboardVtt}
+          />
+        </div>
 
         {/* Sync Status Badge */}
-        <div className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
+        <div className="flex items-center justify-between glass-panel p-4 rounded-2xl border border-white/10 shadow-lg">
           <div className="flex items-center gap-3">
             <span className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
             </span>
             <div>
-              <p className="text-xs text-gray-400">Drift Synchronization Status</p>
+              <p className="text-[11px] text-slate-400 font-mono uppercase tracking-wider">Sync State Machine</p>
               <p className="text-sm font-semibold text-emerald-400">{syncStatus}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs text-gray-400">Measured Drift</p>
-            <p className="text-sm font-mono font-medium text-white">{driftMs} ms</p>
+            <p className="text-[11px] text-slate-400 font-mono uppercase tracking-wider">Client Drift</p>
+            <p className="text-sm font-mono font-bold text-white">{driftMs} ms</p>
           </div>
         </div>
 
         {/* Participants Presence Bar */}
-        <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-            Watching Together ({participants.length})
-          </h3>
-          <div className="flex flex-wrap gap-2">
+        <div className="glass-panel p-4 rounded-2xl border border-white/10 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+              Connected Peers ({participants.length})
+            </h3>
+            <span className="text-[10px] font-mono text-emerald-400">WebSocket /watch-party</span>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
             {participants.map((p) => (
               <span
                 key={p.socketId}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-200 border border-gray-700"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium bg-slate-900/80 text-slate-200 border border-slate-700/80"
               >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                 {p.username}
                 {p.isHost && (
-                  <span className="bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0.2 rounded font-bold">
+                  <span className="bg-amber-500/20 text-amber-300 text-[10px] px-1.5 py-0.2 rounded font-bold font-mono">
                     HOST
                   </span>
                 )}
@@ -229,41 +233,50 @@ export const WatchPartyRoom = ({
       </div>
 
       {/* Right Column: Live Chat Overlay */}
-      <div className="bg-[#121212] border border-gray-800 rounded-2xl flex flex-col h-[580px] overflow-hidden shadow-xl">
-        <div className="px-4 py-3 border-b border-gray-800 bg-gray-900/80">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <span className="text-red-500">●</span> Watch Room Chat
+      <div className="glass-panel rounded-2xl flex flex-col h-[580px] overflow-hidden border border-white/10 shadow-2xl">
+        <div className="px-4 py-3.5 border-b border-white/10 bg-slate-900/70 flex items-center justify-between">
+          <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            Room Stream Chat
           </h2>
+          <span className="text-[11px] font-mono text-slate-400">{messages.length} messages</span>
         </div>
 
         {/* Message Stream */}
         <div className="flex-1 p-4 overflow-y-auto space-y-3">
           {messages.length === 0 ? (
-            <p className="text-xs text-gray-500 text-center mt-20">
-              No messages yet. Say hi to everyone in the room!
-            </p>
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2 text-slate-400">
+              <span className="text-2xl">💬</span>
+              <p className="text-xs">No chat messages yet.</p>
+              <p className="text-[11px] text-slate-500">Play/pause/seek events are synchronized automatically across all participants.</p>
+            </div>
           ) : (
             messages.map((m) => (
-              <div key={m.id} className="text-xs">
-                <span className="font-bold text-orange-400">{m.senderName}: </span>
-                <span className="text-gray-200">{m.message}</span>
+              <div key={m.id} className="text-xs space-y-0.5 bg-slate-900/40 p-2.5 rounded-xl border border-white/5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-indigo-400">{m.senderName}</span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <p className="text-slate-200 text-xs leading-relaxed">{m.message}</p>
               </div>
             ))
           )}
         </div>
 
         {/* Message Input */}
-        <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-800 bg-gray-900/50 flex gap-2">
+        <form onSubmit={handleSendMessage} className="p-3 border-t border-white/10 bg-slate-950/60 flex gap-2">
           <input
             type="text"
             value={inputMsg}
             onChange={(e) => setInputMsg(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 bg-gray-800 text-white text-xs px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-orange-500"
+            placeholder="Broadcast a message..."
+            className="flex-1 bg-slate-900/90 text-white placeholder-slate-500 text-xs px-3.5 py-2.5 rounded-xl border border-slate-700/80 focus:outline-none focus:border-indigo-500 transition-colors"
           />
           <button
             type="submit"
-            className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer"
+            className="glow-btn bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
           >
             Send
           </button>
