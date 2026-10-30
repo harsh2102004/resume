@@ -39,4 +39,32 @@ const uploadOnCloudinary = async (localFilePath) => {
   }
 };
 
-export { uploadOnCloudinary };
+const uploadVideoOnCloudinary = async (localFilePath) => {
+  try {
+    if (!localFilePath || !fs.existsSync(localFilePath)) return null;
+
+    configureCloudinary();
+
+    const response = await cloudinary.uploader.upload_large(localFilePath, {
+      resource_type: "video",
+      folder: "pulsecast/videos",
+      chunk_size: 6000000,
+    });
+
+    return response;
+  } catch (error) {
+    console.error("Cloudinary video upload error, attempting standard upload:", error?.message || error);
+    try {
+      configureCloudinary();
+      return await cloudinary.uploader.upload(localFilePath, {
+        resource_type: "video",
+        folder: "pulsecast/videos",
+      });
+    } catch (fallbackError) {
+      console.error("Cloudinary fallback upload failed:", fallbackError?.message || fallbackError);
+      return null;
+    }
+  }
+};
+
+export { uploadOnCloudinary, uploadVideoOnCloudinary };

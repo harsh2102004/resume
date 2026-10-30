@@ -6,7 +6,7 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, uploadVideoOnCloudinary } from "../utils/cloudinary.js";
 import { transcodeVideoJob } from "../workers/transcode.worker.js";
 import { generateStoryboardJob } from "../workers/storyboard.worker.js";
 
@@ -134,15 +134,15 @@ const publishAVideo = asyncHandler(async (req, res) => {
     let duration = 0;
 
     try {
-        const videoUploadResult = await uploadOnCloudinary(videoFileLocalPath);
+        const videoUploadResult = await uploadVideoOnCloudinary(videoFileLocalPath);
         if (videoUploadResult) {
-            videoCloudUrl = videoUploadResult.url;
-            duration = videoUploadResult.duration || 0;
+            videoCloudUrl = videoUploadResult.secure_url || videoUploadResult.url;
+            duration = Math.round(videoUploadResult.duration || 0);
         }
 
         const thumbnailUploadResult = await uploadOnCloudinary(thumbnailLocalPath);
         if (thumbnailUploadResult) {
-            thumbnailCloudUrl = thumbnailUploadResult.url;
+            thumbnailCloudUrl = thumbnailUploadResult.secure_url || thumbnailUploadResult.url;
         }
     } catch (cloudErr) {
         console.warn("Cloudinary upload skipped or failed, using local storage fallback:", cloudErr.message);
