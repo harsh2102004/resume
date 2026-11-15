@@ -1,21 +1,107 @@
-# PulseCast — Distributed Media Streaming Engine & Watch Party Platform
+<div align="center">
 
-PulseCast is a production-grade distributed media streaming engine and real-time synchronized watch party platform built with Node.js, Express, BullMQ, FFmpeg, MongoDB, and React.
+# PulseCast
+### Distributed Media Streaming Engine & Real-Time Watch Party Platform
 
-The system handles the entire video lifecycle: chunked resumable video uploads via the open-standard TUS protocol, asynchronous multi-bitrate HLS transcoding (360p, 720p) and WebVTT storyboard generation offloaded to a Redis/BullMQ background queue, native HTTP 206 partial content streaming with byte-range clamping, time-expiring HMAC-SHA256 signed playback URLs, and low-latency synchronized watch party rooms with host-authoritative controls and sliding-window rate-limited chat.
+[![PulseCast CI/CD Pipeline](https://github.com/harsh2102004/resume/actions/workflows/ci.yml/badge.svg)](https://github.com/harsh2102004/resume/actions/workflows/ci.yml)
+[![Tests Passing](https://img.shields.io/badge/Tests-41%20Passing-brightgreen.svg)](https://github.com/harsh2102004/resume/actions)
+[![Coverage](https://img.shields.io/badge/Coverage-58.55%25-green.svg)](https://github.com/harsh2102004/resume)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-v20%20%7C%20v22-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-19.2.8-61DAFB.svg)](https://react.dev/)
+[![Frontend Deployment](https://img.shields.io/badge/Frontend-Vercel-black.svg)](https://resume-zeta-one-86.vercel.app)
+[![API Healthcheck](https://img.shields.io/badge/Backend-Render-46E3B7.svg)](https://pulsecast-qff8.onrender.com/api/v1/healthcheck)
+
+<br />
+
+**PulseCast is a production-grade distributed media streaming engine and real-time synchronized watch party platform built with Node.js, Express, BullMQ, FFmpeg, MongoDB, and React.**
+
+<br />
+
+[Live Web Client](https://resume-zeta-one-86.vercel.app) • [API Healthcheck](https://pulsecast-qff8.onrender.com/api/v1/healthcheck) • [Performance Benchmarks](docs/BENCHMARKS.md) • [Architecture](#-architecture)
+
+<br />
+
+<p align="center">
+  <img src="docs/screenshots/watch-stream.png" alt="PulseCast Video Player & Theater Experience" width="920" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.6);" />
+</p>
+
+</div>
 
 ---
 
-## 🌐 Live Deployments & Demo
+## 📑 Table of Contents
 
-* **Web Client**: [https://resume-zeta-one-86.vercel.app](https://resume-zeta-one-86.vercel.app)
-* **Backend API Healthcheck**: [https://pulsecast-qff8.onrender.com/api/v1/healthcheck](https://pulsecast-qff8.onrender.com/api/v1/healthcheck)
-* **Demo Video / GIF**:
-<!-- DEMO VIDEO / GIF PLACEHOLDER: Replace this line with your 60-90 second demo video or GIF link (e.g. [![PulseCast Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID) or ![Demo GIF](path/to/demo.gif)) -->
+* [Overview](#-overview)
+* [Application Interface & Screenshots](#-application-interface--screenshots)
+* [Core Features](#-core-features)
+* [Architecture](#-architecture)
+* [Tech Stack](#-tech-stack)
+* [Setup & Installation](#-setup--installation)
+* [REST API Reference](#-rest-api-reference)
+* [WebSocket Events & Protocols](#-websocket-events--protocols)
+* [Automated Testing & CI/CD](#-automated-testing--cicd)
+* [Performance Benchmarks](#-performance-benchmarks)
+* [Security Architecture](#-security-architecture)
+* [Design Decisions & Trade-Offs](#-design-decisions--trade-offs)
+* [Known Limitations](#-known-limitations)
+* [License & Author](#-license--author)
 
 ---
 
-## ✨ Features
+## 💡 Overview
+
+PulseCast is designed to handle the end-to-end lifecycle of modern video delivery:
+1. **Resumable Ingestion**: Fault-tolerant chunked uploads powered by the open-standard **TUS protocol**, resuming seamlessly across network disconnects.
+2. **Decoupled Background Processing**: Uploaded videos trigger an asynchronous **BullMQ** job queue backed by **Redis**, ensuring long-running transcoding does not freeze the Express HTTP API.
+3. **Adaptive Bitrate Transcoding**: Automated generation of **360p** and **720p HLS** streams (`.ts` segments and `master.m3u8` manifest) with FFmpeg.
+4. **Interactive Scrubbing Sprites**: Extraction of 5x5 keyframe thumbnail grids and structured **WebVTT cue files** (`#xywh`) for timeline hover scrubbing.
+5. **Native HTTP 206 Streaming**: RFC-compliant byte-range handling (`bytes=start-end`, `bytes=start-`, `bytes=-N`) with bounds clamping.
+6. **Tokenized Stream Security**: Time-expiring HMAC-SHA256 signed stream URLs with constant-time verification (`crypto.timingSafeEqual`) and owner-only unpublished stream protection.
+7. **Host-Authoritative Watch Parties**: Sub-10ms synchronized playback rooms over **Socket.IO** (`/watch-party`) featuring dynamic host handover, heartbeat latency tracking, and sliding-window rate-limited chat.
+
+---
+
+## 🖼️ Application Interface & Screenshots
+
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <h3>🎬 Adaptive Streaming Theater</h3>
+      <a href="docs/screenshots/watch-stream.png">
+        <img src="docs/screenshots/watch-stream.png" alt="Adaptive Video Streaming Theater" width="100%" />
+      </a>
+      <p><em>Custom video player with adaptive HLS streams, creator attribution, subscriber controls, and up-next recommendations.</em></p>
+    </td>
+    <td width="50%" align="center">
+      <h3>🍿 Synchronized Watch Party Room</h3>
+      <a href="docs/screenshots/watch-party.png">
+        <img src="docs/screenshots/watch-party.png" alt="Synchronized Watch Party Room" width="100%" />
+      </a>
+      <p><em>Multi-peer synchronized playback rooms with host-authoritative controls and rate-limited live chat.</em></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <h3>🔍 Video Discovery Feed</h3>
+      <a href="docs/screenshots/home-feed.png">
+        <img src="docs/screenshots/home-feed.png" alt="Video Discovery Feed" width="100%" />
+      </a>
+      <p><em>High-definition video feed with duration tags, view counts, creator attribution, and category filter chips.</em></p>
+    </td>
+    <td width="50%" align="center">
+      <h3>🔐 Authentication & Security Portal</h3>
+      <a href="docs/screenshots/auth-portal.png">
+        <img src="docs/screenshots/auth-portal.png" alt="Authentication & Security Portal" width="100%" />
+      </a>
+      <p><em>Stateless JWT authentication with bcrypt password hashing and refresh token rotation.</em></p>
+    </td>
+  </tr>
+</table>
+
+---
+
+## ✨ Core Features
 
 * **Resumable video ingestion**: Standard-compliant TUS protocol (`@tus/server`) uploads with client-side pause/resume controls and automatic byte-offset resumption.
 * **Asynchronous queue-based processing**: Transcoding workloads are decoupled from the HTTP API process using BullMQ and Redis (`video-processing` queue).
@@ -85,26 +171,26 @@ The system handles the entire video lifecycle: chunked resumable video uploads v
 
 ## 🛠️ Tech Stack
 
-| Domain | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Backend Runtime** | Node.js (v20, v22, v24) | High-concurrency asynchronous runtime |
-| **Web Framework** | Express.js 4.18.2 | REST API routing and middleware pipeline |
-| **Media Ingestion** | `@tus/server` 2.4.6, `@tus/file-store` 2.1.1 | Standard-compliant TUS chunked resumable file transfers |
-| **Job Queue** | BullMQ 6.7.6, IORedis 6.0.0 | Redis-backed background video processing queue |
-| **Media Processing** | `fluent-ffmpeg` 2.1.3, `@ffmpeg-installer/ffmpeg` 1.1.0 | Multi-bitrate HLS segmentation, sprite sheets, WebVTT |
-| **Cloud CDN Storage**| Cloudinary SDK 1.41.0 | Remote media hosting fallback & CDN asset delivery |
-| **Real-Time Sockets** | Socket.IO 4.8.4 | Low-latency WebSockets for Watch Party rooms |
-| **Database & ODM** | MongoDB, Mongoose 8.0.0 | Data modeling, pagination, compound indexing |
-| **Authentication & Crypto** | `jsonwebtoken` 9.0.2, `bcrypt` 5.1.1, Node `crypto` | Access/refresh tokens, password hashing, HMAC stream signing |
-| **Security & Validation** | `helmet` 8.3.0, `express-rate-limit` 8.7.4, `zod` 4.6.7 | HTTP header defense, IP rate limiting, schema validation |
-| **Frontend Framework** | React 19.2.8, Vite 8.2.0 | Reactive component architecture, SPA routing |
-| **Frontend Routing** | React Router 7.18.2 | Client-side page navigation and auth redirection |
-| **Video Playback** | Hls.js 1.7.4, HTML5 Video API | Adaptive HLS stream decoding, scrubbing preview overlays |
-| **Styling** | Tailwind CSS 4.3.3 | Dark-mode glassmorphic responsive UI |
-| **Testing Engine** | Node.js Native Test Runner (`node:test`, `node:assert/strict`) | Unit, integration, security, and socket test suites |
-| **In-Memory Database** | `mongodb-memory-server` 11.3.0 | Zero-dependency isolated test database bootstrap |
-| **Code Coverage** | `c8` 12.0.0 | Test coverage reporting |
-| **Containerization** | Docker, Docker Compose (`node:20-alpine`, `mongo:7`, `redis:7-alpine`) | Production container packaging and local orchestration |
+| Domain | Technology | Version | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Backend Runtime** | Node.js | `v20.x`, `v22.x`, `v24.x` | High-concurrency asynchronous runtime |
+| **Web Framework** | Express.js | `4.18.2` | REST API routing and middleware pipeline |
+| **Media Ingestion** | `@tus/server`, `@tus/file-store` | `2.4.6`, `2.1.1` | Standard-compliant TUS chunked resumable file transfers |
+| **Job Queue** | BullMQ, IORedis | `6.7.6`, `6.0.0` | Redis-backed background video processing queue |
+| **Media Processing** | `fluent-ffmpeg`, `@ffmpeg-installer` | `2.1.3`, `1.1.0` | Multi-bitrate HLS segmentation, sprite sheets, WebVTT |
+| **Cloud CDN Storage**| Cloudinary SDK | `1.41.0` | Remote media hosting fallback & CDN asset delivery |
+| **Real-Time Sockets** | Socket.IO | `4.8.4` | Low-latency WebSockets for Watch Party rooms |
+| **Database & ODM** | MongoDB, Mongoose | `8.0.0` | Data modeling, pagination, compound indexing |
+| **Authentication & Crypto** | `jsonwebtoken`, `bcrypt` | `9.0.2`, `5.1.1` | Access/refresh tokens, password hashing, HMAC stream signing |
+| **Security & Validation** | `helmet`, `express-rate-limit`, `zod` | `8.3.0`, `8.7.4`, `4.6.7` | HTTP header defense, IP rate limiting, schema validation |
+| **Frontend Framework** | React, Vite | `19.2.8`, `8.2.0` | Reactive component architecture, SPA routing |
+| **Frontend Routing** | React Router | `7.18.2` | Client-side page navigation and auth redirection |
+| **Video Playback** | Hls.js, HTML5 Media API | `1.7.4` | Adaptive HLS stream decoding, scrubbing preview overlays |
+| **Styling** | Tailwind CSS | `4.3.3` | Dark-mode glassmorphic responsive UI |
+| **Testing Engine** | Node Native Test Runner | Built-in | Unit, integration, security, and socket test suites |
+| **In-Memory Database** | `mongodb-memory-server` | `11.3.0` | Zero-dependency isolated test database bootstrap |
+| **Code Coverage** | `c8` | `12.0.0` | Test code coverage reporting |
+| **Containerization** | Docker, Docker Compose | `20-alpine`, `mongo:7`, `redis:7` | Container packaging and local orchestration |
 
 ---
 
@@ -113,12 +199,12 @@ The system handles the entire video lifecycle: chunked resumable video uploads v
 ### Prerequisites
 * **Node.js**: v20.0.0 or higher
 * **MongoDB**: Local MongoDB instance or MongoDB Atlas cluster
-* **Redis**: Local or cloud Redis instance (v6+ or v7-alpine)
+* **Redis**: Local or cloud Redis instance (v6+ or `redis:7-alpine`)
 * **Cloudinary** *(Optional)*: Cloud credentials for remote CDN storage (falls back to local disk if omitted)
 
 ### 1. Environment Configuration
 
-Create a `.env` file in the project root based on `.env.sample`:
+Create a `.env` file in the project root matching `.env.sample`:
 
 ```env
 # Server & Runtime
@@ -183,7 +269,7 @@ The web client runs at `http://localhost:5173` and the API at `http://localhost:
 
 ### 3. Docker Run
 
-Build and orchestrate the API server, worker, MongoDB, and Redis with healthcheck dependencies:
+Build and orchestrate the API server, worker, MongoDB, and Redis with service healthchecks:
 
 ```bash
 # Production mode (isolated container code)
@@ -258,7 +344,7 @@ All REST endpoints are rooted under `/api/v1`.
 
 ---
 
-## 🔌 WebSocket Events (`/watch-party`)
+## 🔌 WebSocket Events & Protocols
 
 Watch Party rooms connect over Socket.IO under the `/watch-party` namespace.
 
@@ -297,19 +383,19 @@ Watch Party rooms connect over Socket.IO under the `/watch-party` namespace.
 
 ---
 
-## 🧪 Testing & CI Pipeline
+## 🧪 Automated Testing & CI/CD
 
 PulseCast includes an automated test suite executed with Node.js's native test runner (`node:test`) and assertion engine (`node:assert/strict`) backed by `mongodb-memory-server` for zero external database dependencies.
 
 ```bash
-# Run test suite
+# Run full test suite
 npm test
 
 # Run test suite with c8 coverage report
 npm run test:coverage
 ```
 
-### Test Coverage Results
+### Test Suite Breakdown
 
 ```text
 ✔ Auth: 8 tests passing (register valid/duplicate/invalid, login valid/invalid, refresh-token, logout, 401 unauth)
@@ -328,11 +414,11 @@ npm run test:coverage
   * Functions: **58.33%**
   * Lines: **58.55%**
 
-### GitHub Actions CI/CD (`.github/workflows/ci.yml`)
+### GitHub Actions Matrix Pipeline (`.github/workflows/ci.yml`)
 
-Every push and pull request to `main` triggers an automated matrix pipeline:
+Every push and pull request to `main` triggers a complete matrix build pipeline:
 1. Matrix test across Node.js versions `20.x` and `22.x` on `ubuntu-latest`.
-2. Clean backend dependency installation via `npm ci`.
+2. Deterministic backend dependency installation via `npm ci`.
 3. ESLint static analysis on backend source (`npm run lint`).
 4. Automated execution of all 41 tests with coverage reporting (`npm run test:coverage`).
 5. Frontend dependency installation, oxlint analysis, and Vite production bundle build (`npm run build`).
