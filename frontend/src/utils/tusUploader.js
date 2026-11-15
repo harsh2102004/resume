@@ -32,13 +32,41 @@ export class TusUploader {
       .join(",");
   }
 
+  async _attemptTokenRefresh() {
+    try {
+      const refreshToken =
+        typeof localStorage !== "undefined"
+          ? localStorage.getItem("pulsecast_refresh_token")
+          : null;
+      if (!refreshToken) return null;
+
+      const res = await fetch(`${API_BASE_URL}/api/v1/users/refresh-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data?.accessToken) {
+        const newAccess = json.data.accessToken;
+        const newRefresh = json.data.refreshToken || refreshToken;
+        localStorage.setItem("pulsecast_token", newAccess);
+        localStorage.setItem("pulsecast_refresh_token", newRefresh);
+        this.headers.Authorization = `Bearer ${newAccess}`;
+        return newAccess;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   async start() {
     this.isPaused = false;
     this.isAborted = false;
 
     try {
       if (!this.uploadUrl) {
-        const response = await fetch(this.endpoint, {
+        let response = await fetch(this.endpoint, {
           method: "POST",
           headers: {
             "Tus-Resumable": "1.0.0",
@@ -47,6 +75,26 @@ export class TusUploader {
             ...this.headers,
           },
         });
+
+        // Attempt silent token refresh on 401
+        if (response.status === 401) {
+          const refreshedToken = await this._attemptTokenRefresh();
+          if (refreshedToken) {
+            response = await fetch(this.endpoint, {
+              method: "POST",
+              headers: {
+                "Tus-Resumable": "1.0.0",
+                "Upload-Length": String(this.file.size),
+                "Upload-Metadata": this._encodeMetadata(),
+                ...this.headers,
+              },
+            });
+          }
+        }
+
+        if (response.status === 401) {
+          throw new Error("Your session has expired (HTTP 401). Please sign in again to upload videos.");
+        }
 
         if (response.status !== 201) {
           throw new Error(`Upload creation failed: HTTP ${response.status}`);

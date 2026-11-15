@@ -6,7 +6,7 @@ import { API_BASE_URL } from "../config/api";
 import Toast from "../components/Toast";
 
 export const Upload = () => {
-  const { isAuthenticated, token, user } = useAuth();
+  const { isAuthenticated, token, user, logout } = useAuth();
 
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState("");
@@ -134,7 +134,15 @@ export const Upload = () => {
       },
       onError: (err) => {
         setIsUploading(false);
-        setErrorMessage(err.message || "Upload interrupted. Click resume to continue.");
+        const isAuthError =
+          err.message?.includes("401") ||
+          err.message?.toLowerCase().includes("session") ||
+          err.message?.toLowerCase().includes("unauthorized");
+        if (isAuthError) {
+          setErrorMessage("Your session has expired (HTTP 401). Please sign in again to upload.");
+        } else {
+          setErrorMessage(err.message || "Upload interrupted. Click resume to continue.");
+        }
       },
     });
 
@@ -324,8 +332,22 @@ export const Upload = () => {
           )}
 
           {errorMessage && (
-            <div className="p-3 bg-red-950/60 border border-red-500/40 text-red-300 text-xs rounded-xl">
-              {errorMessage}
+            <div className="p-3 bg-red-950/60 border border-red-500/40 text-red-300 text-xs rounded-xl flex items-center justify-between gap-3">
+              <span>{errorMessage}</span>
+              {(errorMessage.includes("expired") ||
+                errorMessage.includes("401") ||
+                errorMessage.includes("sign in")) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await logout();
+                    window.location.reload();
+                  }}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg text-xs transition-all shrink-0 cursor-pointer"
+                >
+                  Sign In Again
+                </button>
+              )}
             </div>
           )}
 
