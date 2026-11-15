@@ -73,12 +73,6 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use("/uploads/hls", express.static(path.resolve("public/uploads/hls")));
 app.use("/uploads/storyboards", express.static(path.resolve("public/uploads/storyboards")));
 
-if (fs.existsSync(path.resolve("public/academy.html"))) {
-    app.get("/academy.html", (req, res) => {
-        res.sendFile(path.resolve("public/academy.html"));
-    });
-}
-
 app.use(cookieParser());
 
 // ─── Rate limiters ────────────────────────────────────────────────────────────

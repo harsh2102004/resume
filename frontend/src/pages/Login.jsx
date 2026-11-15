@@ -1,14 +1,15 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Toast from "../components/Toast";
 
-export const Login = () => {
+export const Login = ({ defaultMode }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { login, register, isAuthenticated, user, logout } = useAuth();
 
   const redirectPath = searchParams.get("redirect") || "/";
-  const [mode, setMode] = useState(searchParams.get("mode") === "signup" ? "signup" : "login"); // "login" | "signup"
+  const [mode, setMode] = useState(defaultMode === "signup" || searchParams.get("mode") === "signup" ? "signup" : "login"); // "login" | "signup"
 
   // Login form state
   const [loginIdentifier, setLoginIdentifier] = useState("");
@@ -260,6 +261,7 @@ export const Login = () => {
           </form>
         )}
       </div>
+      <Toast message={errorMsg} onClose={() => setErrorMsg("")} />
     </div>
   );
 };

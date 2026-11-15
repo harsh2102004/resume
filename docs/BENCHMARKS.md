@@ -72,3 +72,4 @@ All metrics were gathered using the native benchmark scripts in `scripts/bench/`
 2. **Headless Simulated Players**: Sockets were benchmarked using Node.js `socket.io-client` with a synthetic math clock, not real browser media rendering pipelines (`HTMLVideoElement` / Web Audio API) which may experience hardware decode buffering.
 3. **Software Encoding Only**: FFmpeg transcoding used CPU-based `libx264` (`-preset veryfast`). Hardware-accelerated encoders (NVIDIA NVENC, Intel QuickSync, Apple VideoToolbox) were not benchmarked.
 4. **Single-Node In-Memory Storage**: Tests did not include Cloudinary remote upload latency or Atlas replica set latency.
+

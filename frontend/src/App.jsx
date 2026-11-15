@@ -25,6 +25,7 @@ function App() {
               <Route path="/upload" element={<Upload />} />
               <Route path="/watch-party" element={<WatchParty />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Login defaultMode="signup" />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/channel/:username" element={<Profile />} />
             </Routes>

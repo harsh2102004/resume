@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { TusUploader } from "../utils/tusUploader";
 import { API_BASE_URL } from "../config/api";
+import Toast from "../components/Toast";
 
 export const Upload = () => {
   const { isAuthenticated, token, user } = useAuth();
@@ -340,6 +341,7 @@ export const Upload = () => {
           )}
         </form>
       )}
+      <Toast message={errorMessage} onClose={() => setErrorMessage("")} />
     </div>
   );
 };

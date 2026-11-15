@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import HlsPlayer from "../components/HlsPlayer";
 import CommentsSection from "../components/CommentsSection";
+import Toast from "../components/Toast";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL } from "../config/api";
 
@@ -611,6 +612,7 @@ export const Watch = () => {
           </div>
         </div>
       )}
+      <Toast message={errorMessage} onClose={() => setErrorMessage("")} />
     </div>
   );
 };

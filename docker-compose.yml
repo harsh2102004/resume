@@ -4,43 +4,70 @@ services:
   backend:
     build: .
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:${PORT:-8000}"
+    env_file:
+      - .env
     environment:
-      - PORT=8000
-      - MONGODB_URI=mongodb://mongodb:27017/pulsecast
+      - PORT=${PORT:-8000}
+      - MONGODB_URI=mongodb://mongodb:27017/${DB_NAME:-pulsecast}
       - REDIS_URL=redis://redis:6379
-      - CORS_ORIGIN=*
     volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - media_storage:/usr/src/app/storage
+      - public_uploads:/usr/src/app/public/uploads
     depends_on:
-      - mongodb
-      - redis
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8000/api/v1/healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   worker:
     build: .
     command: npm run worker
+    env_file:
+      - .env
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017/pulsecast
+      - MONGODB_URI=mongodb://mongodb:27017/${DB_NAME:-pulsecast}
       - REDIS_URL=redis://redis:6379
     volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - media_storage:/usr/src/app/storage
+      - public_uploads:/usr/src/app/public/uploads
     depends_on:
-      - mongodb
-      - redis
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   mongodb:
-    image: mongo:latest
+    image: mongo:7
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
 volumes:
   mongodb_data:
+  media_storage:
+  public_uploads:

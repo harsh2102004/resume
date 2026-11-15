@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL } from "../config/api";
+import Toast from "../components/Toast";
 
 export const Profile = () => {
   const { username: paramUsername } = useParams();
@@ -23,6 +24,7 @@ export const Profile = () => {
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, videoId: null, videoTitle: "" });
   const [deleting, setDeleting] = useState(false);
   const [statusMessage, setStatusMessage] = useState({ text: "", type: "" });
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -171,10 +173,12 @@ export const Profile = () => {
       setTimeout(() => setStatusMessage({ text: "", type: "" }), 4000);
       setDeleteModal({ isOpen: false, videoId: null, videoTitle: "" });
     } catch (err) {
+      const msg = err.message || "Failed to delete video. Please try again.";
       setStatusMessage({
-        text: err.message || "Failed to delete video. Please try again.",
+        text: msg,
         type: "error",
       });
+      setErrorMessage(msg);
     } finally {
       setDeleting(false);
     }
@@ -662,6 +666,7 @@ export const Profile = () => {
           </div>
         </div>
       )}
+      <Toast message={errorMessage} onClose={() => setErrorMessage("")} />
     </div>
   );
 };

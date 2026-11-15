@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  backend:
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+
+  worker:
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+

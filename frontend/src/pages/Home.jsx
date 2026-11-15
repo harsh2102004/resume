@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { API_BASE_URL } from "../config/api";
+import Toast from "../components/Toast";
 
 const CATEGORIES = [
   "All",
@@ -16,6 +17,7 @@ export const Home = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -27,6 +29,7 @@ export const Home = () => {
         setVideos(validApiDocs);
       } catch {
         setVideos([]);
+        setErrorMessage("Failed to load videos. Please check your connection.");
       } finally {
         setLoading(false);
       }
@@ -229,6 +232,7 @@ export const Home = () => {
           ))}
         </div>
       )}
+      <Toast message={errorMessage} onClose={() => setErrorMessage("")} />
     </div>
   );
 };
