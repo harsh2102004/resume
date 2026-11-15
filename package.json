@@ -12,6 +12,7 @@
     "test": "node --test",
     "test:coverage": "c8 --reporter=text --reporter=lcov node --test",
     "lint": "eslint src/",
+    "db:seed": "node scripts/seed-videos.js",
     "bench:transcode": "node -r dotenv/config scripts/bench/transcode.bench.js",
     "bench:stream": "node -r dotenv/config scripts/bench/stream.bench.js",
     "bench:sync": "node -r dotenv/config scripts/bench/sync.bench.js"

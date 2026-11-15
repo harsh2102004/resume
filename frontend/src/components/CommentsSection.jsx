@@ -18,7 +18,7 @@ const formatTimeAgo = (dateString) => {
 };
 
 export const CommentsSection = ({ videoId }) => {
-  const { user, token, isAuthenticated } = useAuth();
+  const { user, token, isAuthenticated, authFetch } = useAuth();
 
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +88,8 @@ export const CommentsSection = ({ videoId }) => {
     setErrorMessage("");
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/comments/${videoId}`, {
+      const fetchFn = authFetch || fetch;
+      const res = await fetchFn(`${API_BASE_URL}/api/v1/comments/${videoId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -138,7 +139,8 @@ export const CommentsSection = ({ videoId }) => {
     );
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/likes/toggle/c/${commentId}`, {
+      const fetchFn = authFetch || fetch;
+      const res = await fetchFn(`${API_BASE_URL}/api/v1/likes/toggle/c/${commentId}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -194,7 +196,8 @@ export const CommentsSection = ({ videoId }) => {
 
     setActionLoadingId(commentId);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/comments/c/${commentId}`, {
+      const fetchFn = authFetch || fetch;
+      const res = await fetchFn(`${API_BASE_URL}/api/v1/comments/c/${commentId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -228,7 +231,8 @@ export const CommentsSection = ({ videoId }) => {
 
     setActionLoadingId(commentId);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/comments/c/${commentId}`, {
+      const fetchFn = authFetch || fetch;
+      const res = await fetchFn(`${API_BASE_URL}/api/v1/comments/c/${commentId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,

@@ -10,7 +10,7 @@ export const Watch = () => {
   const { videoId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, token, isAuthenticated } = useAuth();
+  const { user, token, isAuthenticated, authFetch } = useAuth();
 
   const [video, setVideo] = useState(
     location.state?.video?._id === videoId ? location.state.video : null
@@ -154,12 +154,19 @@ export const Watch = () => {
     setLikes(nextLikes);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/likes/toggle/v/${videoId}`, {
+      const fetchFn = authFetch || fetch;
+      const res = await fetchFn(`${API_BASE_URL}/api/v1/likes/toggle/v/${videoId}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      if (res.status === 401) {
+        setShowAuthModal(true);
+        throw new Error("Session expired. Please sign in to like this video.");
+      }
+
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.message || "Failed to update like status");
@@ -204,12 +211,19 @@ export const Watch = () => {
     setSubscriberCount(nextState ? prevCount + 1 : Math.max(0, prevCount - 1));
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/subscriptions/c/${channelId}`, {
+      const fetchFn = authFetch || fetch;
+      const res = await fetchFn(`${API_BASE_URL}/api/v1/subscriptions/c/${channelId}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      if (res.status === 401) {
+        setShowAuthModal(true);
+        throw new Error("Session expired. Please sign in to subscribe.");
+      }
+
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.message || "Failed to update subscription");
@@ -247,7 +261,8 @@ export const Watch = () => {
     setDeleting(true);
     setDeleteError("");
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/videos/${videoId}`, {
+      const fetchFn = authFetch || fetch;
+      const res = await fetchFn(`${API_BASE_URL}/api/v1/videos/${videoId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -413,7 +428,9 @@ export const Watch = () => {
                 <span className="text-white">{(video?.views || 0).toLocaleString()} views</span>
                 <span>•</span>
                 <span>Published on PulseCast</span>
-                {video?.transcodingStatus && video.transcodingStatus !== "COMPLETED" && (
+                {video?.transcodingStatus &&
+                  video.transcodingStatus !== "COMPLETED" &&
+                  (!video.videoFile?.startsWith("http") || video.transcodingStatus === "PROCESSING") && (
                   <>
                     <span>•</span>
                     <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-medium flex items-center gap-1">
