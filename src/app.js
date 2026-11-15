@@ -1,8 +1,26 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import path from "path";
+import fs from "fs";
 import { tusServer } from "./services/tus.service.js";
 import { authenticateRequest } from "./middlewares/auth.middleware.js";
+
+// Ensure storage and public streaming directories exist at startup
+const uploadDir = path.resolve(process.env.UPLOAD_DIR || "storage/uploads/resumable");
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const hlsDir = path.resolve("public/uploads/hls");
+if (!fs.existsSync(hlsDir)) {
+    fs.mkdirSync(hlsDir, { recursive: true });
+}
+
+const storyboardsDir = path.resolve("public/uploads/storyboards");
+if (!fs.existsSync(storyboardsDir)) {
+    fs.mkdirSync(storyboardsDir, { recursive: true });
+}
 
 const app = express();
 
@@ -27,7 +45,17 @@ app.use(cors({
 
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-app.use(express.static("public"));
+
+// Narrow static exposure: ONLY expose processed HLS streams and storyboard scrubbing sprites
+app.use("/uploads/hls", express.static(path.resolve("public/uploads/hls")));
+app.use("/uploads/storyboards", express.static(path.resolve("public/uploads/storyboards")));
+
+if (fs.existsSync(path.resolve("public/academy.html"))) {
+    app.get("/academy.html", (req, res) => {
+        res.sendFile(path.resolve("public/academy.html"));
+    });
+}
+
 app.use(cookieParser());
 
 app.all("/api/v1/videos/resumable-upload*", async (req, res) => {

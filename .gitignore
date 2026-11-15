@@ -127,3 +127,7 @@ dist
 public/uploads/**
 !public/uploads/**/.gitkeep
 
+# Private storage for original/raw uploads
+storage/
+
+

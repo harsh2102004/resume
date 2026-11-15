@@ -7,7 +7,8 @@ import { transcodeVideoJob } from "../workers/transcode.worker.js";
 import { generateStoryboardJob } from "../workers/storyboard.worker.js";
 import { uploadVideoOnCloudinary } from "../utils/cloudinary.js";
 
-const resumableUploadDir = path.resolve("public/uploads/resumable");
+const uploadDirEnv = process.env.UPLOAD_DIR || "storage/uploads/resumable";
+const resumableUploadDir = path.resolve(uploadDirEnv);
 if (!fs.existsSync(resumableUploadDir)) {
     fs.mkdirSync(resumableUploadDir, { recursive: true });
 }

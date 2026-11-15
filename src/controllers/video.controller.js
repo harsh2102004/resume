@@ -120,7 +120,10 @@ const publishAVideo = asyncHandler(async (req, res) => {
     const fileSize = videoStat ? videoStat.size : 0;
 
     // Ensure uploads directory exists for persistent local streaming
-    const uploadsDir = path.resolve("public/uploads/videos");
+    const baseUploadDir = process.env.UPLOAD_DIR
+        ? path.dirname(path.resolve(process.env.UPLOAD_DIR))
+        : path.resolve("storage/uploads");
+    const uploadsDir = path.join(baseUploadDir, "videos");
     if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
     }
@@ -268,11 +271,19 @@ const deleteVideo = asyncHandler(async (req, res) => {
     }
 
     // Cleanup local file if it exists
-    if (video.localPath && fs.existsSync(video.localPath)) {
-        try {
-            fs.unlinkSync(video.localPath);
-        } catch (err) {
-            console.error("Error deleting local video file:", err);
+    if (video.localPath) {
+        let fileToDelete = video.localPath;
+        if (!fs.existsSync(fileToDelete)) {
+            const uploadDir = path.resolve(process.env.UPLOAD_DIR || "storage/uploads/resumable");
+            const altPath = path.join(uploadDir, path.basename(video.localPath));
+            if (fs.existsSync(altPath)) fileToDelete = altPath;
+        }
+        if (fs.existsSync(fileToDelete)) {
+            try {
+                fs.unlinkSync(fileToDelete);
+            } catch (err) {
+                console.error("Error deleting local video file:", err);
+            }
         }
     }
 

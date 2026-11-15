@@ -31,10 +31,19 @@ const probeVideoDuration = (filePath) => {
 };
 
 export const generateStoryboardJob = async (videoId, inputFilePath) => {
-    if (!fs.existsSync(inputFilePath)) return null;
+    let resolvedInput = inputFilePath;
+    if (!fs.existsSync(resolvedInput)) {
+        const uploadDir = path.resolve(process.env.UPLOAD_DIR || "storage/uploads/resumable");
+        const altPath = path.join(uploadDir, path.basename(inputFilePath));
+        if (fs.existsSync(altPath)) {
+            resolvedInput = altPath;
+        } else {
+            return null;
+        }
+    }
 
     try {
-        const duration = await probeVideoDuration(inputFilePath);
+        const duration = await probeVideoDuration(resolvedInput);
         const interval = 5;
         const thumbWidth = 160;
         const thumbHeight = 90;
@@ -54,7 +63,7 @@ export const generateStoryboardJob = async (videoId, inputFilePath) => {
         const spritePattern = path.join(videoDir, "sprite_%03d.jpg");
 
         await new Promise((resolve, reject) => {
-            ffmpeg(inputFilePath)
+            ffmpeg(resolvedInput)
                 .outputOptions([
                     "-vf", `fps=1/${interval},scale=${thumbWidth}:${thumbHeight},tile=${gridCols}x${gridRows}`,
                     "-q:v", "3",

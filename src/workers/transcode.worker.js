@@ -67,7 +67,16 @@ const generateMasterManifest = (outputDir, profiles) => {
 };
 
 export const transcodeVideoJob = async (videoId, inputFilePath) => {
-    if (!fs.existsSync(inputFilePath)) return;
+    let resolvedInput = inputFilePath;
+    if (!fs.existsSync(resolvedInput)) {
+        const uploadDir = path.resolve(process.env.UPLOAD_DIR || "storage/uploads/resumable");
+        const altPath = path.join(uploadDir, path.basename(inputFilePath));
+        if (fs.existsSync(altPath)) {
+            resolvedInput = altPath;
+        } else {
+            return;
+        }
+    }
 
     try {
         await Video.findByIdAndUpdate(videoId, { transcodingStatus: "PROCESSING" });
@@ -82,7 +91,7 @@ export const transcodeVideoJob = async (videoId, inputFilePath) => {
         const completedProfiles = [];
         for (const profile of HLS_PROFILES) {
             try {
-                await transcodeToProfile(inputFilePath, videoHlsDir, profile);
+                await transcodeToProfile(resolvedInput, videoHlsDir, profile);
                 completedProfiles.push(profile);
             } catch (err) {
                 console.warn(`Skipping profile ${profile.name}:`, err.message);

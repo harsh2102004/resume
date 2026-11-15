@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import jwt from "jsonwebtoken";
 import { isValidObjectId } from "mongoose";
 import { Video } from "../models/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -48,11 +49,51 @@ const streamVideo = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Video not found");
     }
 
+    // Unpublished videos can only be streamed by their owner
+    if (!video.isPublished) {
+        let requestingUserId = req.user?._id?.toString() || null;
+
+        if (!requestingUserId) {
+            const authHeader =
+                typeof req.header === "function"
+                    ? req.header("Authorization")
+                    : (req.headers?.authorization || req.headers?.Authorization);
+
+            const token =
+                req.cookies?.accessToken ||
+                authHeader?.replace(/^Bearer\s+/i, "") ||
+                req.query?.token;
+
+            if (token) {
+                try {
+                    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+                    requestingUserId = decoded?._id?.toString();
+                } catch {
+                    // Invalid/expired token
+                }
+            }
+        }
+
+        const ownerId = video.owner?.toString();
+        if (!requestingUserId || requestingUserId !== ownerId) {
+            throw new ApiError(403, "Access denied: Unpublished videos can only be streamed by their owner");
+        }
+    }
+
     const range = req.headers.range;
 
     // Stream from local storage
-    if (video.localPath && fs.existsSync(video.localPath)) {
-        const filePath = path.resolve(video.localPath);
+    let localFilePath = video.localPath;
+    if (localFilePath && !fs.existsSync(localFilePath)) {
+        const uploadDir = path.resolve(process.env.UPLOAD_DIR || "storage/uploads/resumable");
+        const altPath = path.join(uploadDir, path.basename(localFilePath));
+        if (fs.existsSync(altPath)) {
+            localFilePath = altPath;
+        }
+    }
+
+    if (localFilePath && fs.existsSync(localFilePath)) {
+        const filePath = path.resolve(localFilePath);
         const stat = fs.statSync(filePath);
         const fileSize = stat.size;
 

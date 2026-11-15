@@ -6,3 +6,5 @@ npm-debug.log
 .prettierrc
 .prettierignore
 Readme.md
+storage/
+

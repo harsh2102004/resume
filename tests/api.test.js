@@ -27,10 +27,25 @@ let server;
 let lastCreatedVideo = null;
 let originalFindById;
 let originalCreate;
-
+let originalVideoFindById;
 let originalFindByIdAndUpdate;
 
+const testLocalVideoPath = path.resolve("storage/test-stream-file.mp4");
+const mockUnpublishedVideo = {
+    _id: "64f1a2b3c4d5e6f7a8b9c0d1",
+    title: "Private Video",
+    isPublished: false,
+    owner: testUser._id,
+    localPath: testLocalVideoPath,
+    mimeType: "video/mp4",
+};
+
 test.before(async () => {
+    if (!fs.existsSync(path.dirname(testLocalVideoPath))) {
+        fs.mkdirSync(path.dirname(testLocalVideoPath), { recursive: true });
+    }
+    fs.writeFileSync(testLocalVideoPath, "test-video-content-stream-bytes");
+
     originalFindById = User.findById;
     User.findById = (id) => ({
         select: (fields) => {
@@ -40,6 +55,14 @@ test.before(async () => {
             return Promise.resolve(null);
         },
     });
+
+    originalVideoFindById = Video.findById;
+    Video.findById = (id) => {
+        if (String(id) === String(mockUnpublishedVideo._id)) {
+            return Promise.resolve(mockUnpublishedVideo);
+        }
+        return Promise.resolve(null);
+    };
 
     originalCreate = Video.create;
     Video.create = async (doc) => {
@@ -80,7 +103,9 @@ test.before(async () => {
 
 test.after(async () => {
     User.findById = originalFindById;
+    Video.findById = originalVideoFindById;
     Video.create = originalCreate;
+    if (fs.existsSync(testLocalVideoPath)) fs.unlinkSync(testLocalVideoPath);
     await new Promise((resolve) => server.close(resolve));
 });
 
@@ -239,4 +264,59 @@ test("Media Security: Tampered signature returns HTTP 403 Forbidden", async () =
 test("HTTP 206 Streaming: Should return 400 for invalid video ObjectId format", async () => {
     const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/non-existent-id`);
     assert.equal(res.status, 400);
+});
+
+test("Security: Raw upload file cannot be fetched from public /uploads/resumable route (returns 404)", async () => {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/uploads/resumable/test-raw-upload-id`);
+    assert.equal(res.status, 404);
+});
+
+test("Public Streaming: Processed HLS streams are accessible via /uploads/hls", async () => {
+    const testHlsDir = path.resolve("public/uploads/hls/test-stream-fixture");
+    if (!fs.existsSync(testHlsDir)) {
+        fs.mkdirSync(testHlsDir, { recursive: true });
+    }
+    const manifestPath = path.join(testHlsDir, "master.m3u8");
+    fs.writeFileSync(manifestPath, "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=800000\n360p.m3u8\n");
+
+    try {
+        const res = await fetch(`http://127.0.0.1:${TEST_PORT}/uploads/hls/test-stream-fixture/master.m3u8`);
+        assert.equal(res.status, 200);
+        const text = await res.text();
+        assert.ok(text.includes("#EXTM3U"));
+    } finally {
+        if (fs.existsSync(manifestPath)) fs.unlinkSync(manifestPath);
+        if (fs.existsSync(testHlsDir)) fs.rmdirSync(testHlsDir);
+    }
+});
+
+test("Security: Unpublished video can only be streamed by its owner", async () => {
+    const videoId = mockUnpublishedVideo._id;
+
+    // 1. Unauthenticated request -> 403 Forbidden
+    const unauthRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${videoId}`);
+    assert.equal(unauthRes.status, 403);
+
+    // 2. Another authenticated user -> 403 Forbidden
+    const otherUserToken = jwt.sign(
+        { _id: "64f1a2b3c4d5e6f7a8b9c999" },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "1h" }
+    );
+    const forbiddenRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${videoId}`, {
+        headers: {
+            Authorization: `Bearer ${otherUserToken}`,
+        },
+    });
+    assert.equal(forbiddenRes.status, 403);
+
+    // 3. Video owner -> 200 OK
+    const ownerRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${videoId}`, {
+        headers: {
+            Authorization: `Bearer ${validToken}`,
+        },
+    });
+    assert.equal(ownerRes.status, 200);
+    const bodyText = await ownerRes.text();
+    assert.equal(bodyText, "test-video-content-stream-bytes");
 });
