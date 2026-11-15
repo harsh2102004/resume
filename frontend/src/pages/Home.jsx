@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { DEMO_VIDEOS } from "../data/demoVideos";
 import { API_BASE_URL } from "../config/api";
 
 const CATEGORIES = [
@@ -25,12 +24,9 @@ export const Home = () => {
         const json = await res.json();
         const apiDocs = json.data?.docs || [];
         const validApiDocs = apiDocs.filter((v) => v.videoFile && !v.mimeType?.startsWith("image/"));
-        // Combine all 20 demo videos with any newly published user videos
-        const combined = [...validApiDocs, ...DEMO_VIDEOS];
-        const unique = Array.from(new Map(combined.map((v) => [String(v._id), v])).values());
-        setVideos(unique);
-      } catch (err) {
-        setVideos(DEMO_VIDEOS);
+        setVideos(validApiDocs);
+      } catch {
+        setVideos([]);
       } finally {
         setLoading(false);
       }
@@ -115,11 +111,29 @@ export const Home = () => {
             </div>
           ))}
         </div>
-      ) : filteredVideos.length === 0 ? (
+      ) : videos.length === 0 ? (
         <div className="glass-panel rounded-3xl p-16 text-center space-y-4">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-bold text-white">No videos yet</h3>
+          <p className="text-slate-400 text-sm max-w-md mx-auto">
+            There are no videos published yet. Be the first creator to share high-performance streaming videos on PulseCast!
+          </p>
+          <Link
+            to="/upload"
+            className="inline-block px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm text-white font-semibold shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+          >
+            Upload a Video
+          </Link>
+        </div>
+      ) : filteredVideos.length === 0 ? (
+        <div className="glass-panel rounded-3xl p-16 text-center space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
           <h3 className="text-xl font-bold text-white">No videos found</h3>
@@ -128,7 +142,7 @@ export const Home = () => {
           </p>
           <button
             onClick={() => { setSearchQuery(""); setSelectedCategory("All"); }}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm text-slate-200 font-medium transition-colors"
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm text-slate-200 font-medium transition-colors cursor-pointer"
           >
             Reset Filters
           </button>

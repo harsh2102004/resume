@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import HlsPlayer from "../components/HlsPlayer";
 import CommentsSection from "../components/CommentsSection";
-import { DEMO_VIDEOS } from "../data/demoVideos";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL } from "../config/api";
 
@@ -13,52 +12,42 @@ export const Watch = () => {
   const { user, token, isAuthenticated } = useAuth();
 
   const [video, setVideo] = useState(
-    location.state?.video?._id === videoId
-      ? location.state.video
-      : DEMO_VIDEOS.find((s) => s._id === videoId) || null
+    location.state?.video?._id === videoId ? location.state.video : null
   );
   const [loading, setLoading] = useState(!video);
-  const [likes, setLikes] = useState(1420);
-  const [hasLiked, setHasLiked] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const [subscriberCount, setSubscriberCount] = useState(14200);
+  const [likes, setLikes] = useState(video?.likesCount ?? 0);
+  const [hasLiked, setHasLiked] = useState(Boolean(video?.isLiked));
+  const [isSubscribed, setIsSubscribed] = useState(Boolean(video?.isSubscribed));
+  const [subscriberCount, setSubscriberCount] = useState(video?.subscribersCount ?? 0);
+  const [upNextVideos, setUpNextVideos] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
-  // Deterministic base like count for videos
-  const getBaseLikes = (vid) => {
-    if (vid?.likes !== undefined && vid?.likes > 0) return vid.likes;
-    let hash = 0;
-    const str = String(videoId || "video");
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return 1200 + Math.abs(hash % 3800);
-  };
-
-  // Sync video metadata
+  // Sync video metadata from server
   useEffect(() => {
     let isMounted = true;
     const fetchVideo = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/videos/${videoId}`);
+        const headers = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+        const res = await fetch(`${API_BASE_URL}/api/v1/videos/${videoId}`, { headers });
         const json = await res.json();
-        if (isMounted) {
-          if (json.data) {
-            setVideo(json.data);
-          } else {
-            const found = DEMO_VIDEOS.find((s) => s._id === videoId);
-            if (found) setVideo(found);
-          }
+        if (isMounted && json.data) {
+          setVideo(json.data);
+          setLikes(json.data.likesCount ?? 0);
+          setHasLiked(Boolean(json.data.isLiked));
+          setIsSubscribed(Boolean(json.data.isSubscribed));
+          setSubscriberCount(json.data.subscribersCount ?? 0);
         }
       } catch (err) {
         if (isMounted) {
-          const found = DEMO_VIDEOS.find((s) => s._id === videoId);
-          if (found) setVideo(found);
+          setErrorMessage("Failed to load video details");
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -69,39 +58,29 @@ export const Watch = () => {
     return () => {
       isMounted = false;
     };
+  }, [videoId, token]);
+
+  // Load Up Next videos from server
+  useEffect(() => {
+    let isMounted = true;
+    const fetchUpNext = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/videos?limit=10`);
+        const json = await res.json();
+        const docs = json.data?.docs || [];
+        if (isMounted) {
+          setUpNextVideos(docs.filter((v) => String(v._id) !== String(videoId)));
+        }
+      } catch {
+        if (isMounted) setUpNextVideos([]);
+      }
+    };
+
+    fetchUpNext();
+    return () => {
+      isMounted = false;
+    };
   }, [videoId]);
-
-  // Restore persistent likes and liked status
-  useEffect(() => {
-    if (!videoId) return;
-
-    // 1. Retrieve persisted like count
-    const savedLikes = localStorage.getItem(`pulsecast_likes_${videoId}`);
-    if (savedLikes !== null) {
-      setLikes(parseInt(savedLikes, 10));
-    } else {
-      setLikes(getBaseLikes(video));
-    }
-
-    // 2. Retrieve user's specific liked status
-    if (user?._id) {
-      const userLiked = localStorage.getItem(`pulsecast_liked_${user._id}_${videoId}`) === "true";
-      setHasLiked(userLiked);
-    } else {
-      setHasLiked(false);
-    }
-  }, [videoId, user?._id]);
-
-  // Load channel subscription status
-  useEffect(() => {
-    if (!video) return;
-    const channelKey = video?.owner?._id || video?.owner?.username || "default_channel";
-    const savedSub = localStorage.getItem(`pulsecast_sub_${channelKey}`) === "true";
-    setIsSubscribed(savedSub);
-
-    const baseSubs = video?.owner?.subscribers || 14200;
-    setSubscriberCount(savedSub ? baseSubs + 1 : baseSubs);
-  }, [video]);
 
   if (loading) {
     return (
@@ -112,21 +91,38 @@ export const Watch = () => {
     );
   }
 
-  // Determine media URL accurately for the current videoId
-  const currentVideo = (video && String(video._id) === String(videoId))
-    ? video
-    : DEMO_VIDEOS.find((s) => s._id === videoId);
+  if (!video) {
+    return (
+      <div className="glass-panel rounded-3xl p-16 text-center space-y-4 max-w-xl mx-auto my-12">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-red-500/10 flex items-center justify-center text-red-400">
+          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold text-white">Video not found</h3>
+        <p className="text-slate-400 text-sm">
+          The requested video could not be loaded or does not exist.
+        </p>
+        <Link
+          to="/"
+          className="inline-block px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm text-slate-200 font-medium transition-colors"
+        >
+          Back to Home
+        </Link>
+      </div>
+    );
+  }
 
-  const videoSrc = currentVideo?.videoFile?.startsWith("http")
-    ? currentVideo.videoFile
-    : currentVideo?.videoFile
-    ? `${API_BASE_URL}${currentVideo.videoFile}`
+  const videoSrc = video.videoFile?.startsWith("http")
+    ? video.videoFile
+    : video.videoFile
+    ? `${API_BASE_URL}${video.videoFile}`
     : "https://vjs.zencdn.net/v/oceans.mp4";
 
-  const vttSrc = currentVideo?.storyboardVtt
-    ? currentVideo.storyboardVtt.startsWith("http")
-      ? currentVideo.storyboardVtt
-      : `${API_BASE_URL}${currentVideo.storyboardVtt}`
+  const vttSrc = video.storyboardVtt
+    ? video.storyboardVtt.startsWith("http")
+      ? video.storyboardVtt
+      : `${API_BASE_URL}${video.storyboardVtt}`
     : null;
 
   const handleStartWatchParty = () => {
@@ -141,56 +137,93 @@ export const Watch = () => {
   };
 
   const handleLike = async () => {
-    // Gating: only logged-in users can like
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !token) {
       setShowAuthModal(true);
       return;
     }
 
-    const nextHasLiked = !hasLiked;
-    const nextLikes = nextHasLiked ? likes + 1 : Math.max(0, likes - 1);
+    const prevHasLiked = hasLiked;
+    const prevLikes = likes;
+    const nextHasLiked = !prevHasLiked;
+    const nextLikes = nextHasLiked ? prevLikes + 1 : Math.max(0, prevLikes - 1);
 
+    // Optimistic UI update
     setHasLiked(nextHasLiked);
     setLikes(nextLikes);
 
-    // Persist immediately in localStorage
-    localStorage.setItem(`pulsecast_likes_${videoId}`, String(nextLikes));
-    if (user?._id) {
-      localStorage.setItem(`pulsecast_liked_${user._id}_${videoId}`, String(nextHasLiked));
-    }
-
-    // Synchronize to backend if token available
-    if (token) {
-      try {
-        await fetch(`${API_BASE_URL}/api/v1/likes/toggle/v/${videoId}`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      } catch (err) {
-        console.warn("Backend like sync warning:", err);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/likes/toggle/v/${videoId}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update like status");
       }
+      // Server response as source of truth
+      if (typeof data.data?.isLiked === "boolean") {
+        setHasLiked(data.data.isLiked);
+      }
+      if (typeof data.data?.likesCount === "number") {
+        setLikes(data.data.likesCount);
+      }
+    } catch (err) {
+      // Rollback on failure
+      setHasLiked(prevHasLiked);
+      setLikes(prevLikes);
+      setErrorMessage(err.message || "Failed to like video. Please try again.");
+      setTimeout(() => setErrorMessage(""), 4000);
     }
   };
 
   const handleToggleSubscribe = async () => {
-    const channelKey = video?.owner?._id || video?.owner?.username || "default_channel";
-    const nextState = !isSubscribed;
+    if (!isAuthenticated || !token) {
+      setShowAuthModal(true);
+      return;
+    }
 
+    const channelId = video?.owner?._id || video?.owner;
+    if (!channelId) return;
+
+    if (user?._id && String(channelId) === String(user._id)) {
+      setErrorMessage("You cannot subscribe to your own channel");
+      setTimeout(() => setErrorMessage(""), 4000);
+      return;
+    }
+
+    const prevIsSubscribed = isSubscribed;
+    const prevCount = subscriberCount;
+    const nextState = !prevIsSubscribed;
+
+    // Optimistic UI update
     setIsSubscribed(nextState);
-    setSubscriberCount((prev) => (nextState ? prev + 1 : Math.max(0, prev - 1)));
+    setSubscriberCount(nextState ? prevCount + 1 : Math.max(0, prevCount - 1));
 
-    // Persist in localStorage
-    localStorage.setItem(`pulsecast_sub_${channelKey}`, nextState.toString());
-
-    // Send to backend API
     try {
-      await fetch(`${API_BASE_URL}/api/v1/subscriptions/c/${channelKey}`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/subscriptions/c/${channelId}`, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update subscription");
+      }
+      if (typeof data.data?.isSubscribed === "boolean") {
+        setIsSubscribed(data.data.isSubscribed);
+      }
+      if (typeof data.data?.subscribersCount === "number") {
+        setSubscriberCount(data.data.subscribersCount);
+      }
     } catch (err) {
-      // Offline fallback
+      // Rollback on failure
+      setIsSubscribed(prevIsSubscribed);
+      setSubscriberCount(prevCount);
+      setErrorMessage(err.message || "Failed to update subscription. Please try again.");
+      setTimeout(() => setErrorMessage(""), 4000);
     }
   };
 
@@ -232,6 +265,19 @@ export const Watch = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm flex items-center justify-between animate-fade-in">
+          <span>{errorMessage}</span>
+          <button
+            onClick={() => setErrorMessage("")}
+            className="text-red-400 hover:text-white font-bold ml-4"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* 2-Column Responsive Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Player, Video Info & Comments */}
@@ -338,7 +384,7 @@ export const Watch = () => {
                   onClick={handleStartWatchParty}
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
                 >
-                  <span>🍿</span>
+                  <span>👥</span>
                   <span>Watch Party</span>
                 </button>
 
@@ -362,9 +408,9 @@ export const Watch = () => {
             {/* Description Box */}
             <div className="glass-panel p-4 rounded-2xl border border-white/5 space-y-2">
               <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold">
-                <span className="text-white">{(video?.views || 14200).toLocaleString()} views</span>
+                <span className="text-white">{(video?.views || 0).toLocaleString()} views</span>
                 <span>•</span>
-                <span>Published recently</span>
+                <span>Published on PulseCast</span>
               </div>
               <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
                 {video?.description || "Enjoy watching this video in high resolution on PulseCast."}
@@ -384,43 +430,51 @@ export const Watch = () => {
             </h2>
           </div>
 
-          <div className="space-y-3">
-            {DEMO_VIDEOS.filter((v) => v._id !== videoId).slice(0, 7).map((item) => (
-              <Link
-                key={item._id}
-                to={`/watch/${item._id}`}
-                state={{ video: item }}
-                className={`flex gap-3 p-2 rounded-xl glass-card border border-white/5 group ${
-                  item._id === videoId ? "ring-1 ring-indigo-500 bg-white/5" : ""
-                }`}
-              >
-                <div className="relative w-36 aspect-video rounded-lg overflow-hidden flex-shrink-0 bg-slate-950">
-                  <img
-                    src={item.thumbnail}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <span className="absolute bottom-1 right-1 bg-black/85 text-[10px] px-1 py-0.2 rounded text-white font-medium">
-                    {Math.floor(item.duration / 60)}:{String(item.duration % 60).padStart(2, "0")}
-                  </span>
-                </div>
-                <div className="flex flex-col justify-between overflow-hidden">
-                  <h4 className="text-xs font-bold text-white line-clamp-2 group-hover:text-indigo-400 transition-colors">
-                    {item.title}
-                  </h4>
-                  <div className="text-[11px] text-slate-400">
-                    <p className="truncate">{item.owner.fullName}</p>
-                    <p>{item.views} views</p>
+          {upNextVideos.length === 0 ? (
+            <div className="p-4 rounded-2xl bg-slate-900/50 border border-white/5 text-center text-xs text-slate-500">
+              No other videos available yet
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {upNextVideos.slice(0, 7).map((item) => (
+                <Link
+                  key={item._id}
+                  to={`/watch/${item._id}`}
+                  state={{ video: item }}
+                  className={`flex gap-3 p-2 rounded-xl glass-card border border-white/5 group ${
+                    item._id === videoId ? "ring-1 ring-indigo-500 bg-white/5" : ""
+                  }`}
+                >
+                  <div className="relative w-36 aspect-video rounded-lg overflow-hidden flex-shrink-0 bg-slate-950">
+                    <img
+                      src={item.thumbnail || "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800"}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    {item.duration ? (
+                      <span className="absolute bottom-1 right-1 bg-black/85 text-[10px] px-1 py-0.2 rounded text-white font-medium">
+                        {Math.floor(item.duration / 60)}:{String(item.duration % 60).padStart(2, "0")}
+                      </span>
+                    ) : null}
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                  <div className="flex flex-col justify-between overflow-hidden">
+                    <h4 className="text-xs font-bold text-white line-clamp-2 group-hover:text-indigo-400 transition-colors">
+                      {item.title}
+                    </h4>
+                    <div className="text-[11px] text-slate-400">
+                      <p className="truncate">{item.owner?.fullName || "Creator"}</p>
+                      <p>{item.views || 0} views</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
 
           {/* Watch Party Callout */}
           <div className="p-5 rounded-2xl bg-indigo-950/40 border border-indigo-500/20 space-y-3">
             <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold">
-              <span className="text-base">🍿</span>
+              <span className="text-base">👥</span>
               <span>Watch Together with Friends</span>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
@@ -436,7 +490,7 @@ export const Watch = () => {
         </div>
       </div>
 
-      {/* Sign In Required Modal for Liking */}
+      {/* Sign In Required Modal */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-sm w-full p-6 space-y-5 shadow-2xl relative">
@@ -456,9 +510,9 @@ export const Watch = () => {
             </div>
 
             <div className="text-center space-y-1.5">
-              <h3 className="text-lg font-bold text-white">Sign in to like this video</h3>
+              <h3 className="text-lg font-bold text-white">Sign in required</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Join PulseCast to like videos, save them to your library, and engage with creator communities.
+                Join PulseCast to like videos, subscribe to channels, and engage with creators.
               </p>
             </div>
 
@@ -493,7 +547,7 @@ export const Watch = () => {
               <div className="space-y-1">
                 <h3 className="text-lg font-bold text-white">Delete this video?</h3>
                 <p className="text-xs text-slate-400">
-                  This video will be permanently removed from your channel and CDN.
+                  This video will be permanently removed from your channel and storage.
                 </p>
               </div>
             </div>

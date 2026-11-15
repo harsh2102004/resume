@@ -4,11 +4,12 @@ import {
   getUserChannelSubscribers,
   toggleSubscription,
 } from "../controllers/subscription.controller.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Publicly get subscribers of a channel
-router.route("/c/:channelId").get(getUserChannelSubscribers).post(toggleSubscription);
+// Publicly get subscribers of a channel; toggle requires auth
+router.route("/c/:channelId").get(getUserChannelSubscribers).post(verifyJWT, toggleSubscription);
 
 // Get channels a user subscribed to
 router.route("/u/:subscriberId").get(getSubscribedChannels);

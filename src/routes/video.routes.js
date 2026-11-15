@@ -8,7 +8,7 @@ import {
     updateVideo,
 } from "../controllers/video.controller.js";
 import { streamVideo, getSignedStreamUrl } from "../controllers/stream.controller.js";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { verifyJWT, optionalJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { validate } from "../validators/validate.middleware.js";
 import { updateVideoSchema } from "../validators/video.validator.js";
@@ -18,7 +18,7 @@ const router = Router();
 router.route("/stream/:videoId").get(streamVideo);
 router.route("/sign-stream/:videoId").get(verifyJWT, getSignedStreamUrl);
 router.route("/").get(getAllVideos);
-router.route("/:videoId").get(getVideoById);
+router.route("/:videoId").get(optionalJWT, getVideoById);
 
 router.route("/").post(
     verifyJWT,

@@ -9,15 +9,21 @@ const toggleSubscription = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
 
   if (!isValidObjectId(channelId)) {
-    // Return mock success for demo channels
-    return res.status(200).json(
-      new ApiResponse(200, { isSubscribed: true }, "Subscription toggled successfully")
-    );
+    throw new ApiError(400, "Invalid channel ID");
   }
 
   const subscriberId = req.user?._id;
   if (!subscriberId) {
     throw new ApiError(401, "Authentication required to subscribe");
+  }
+
+  if (subscriberId.toString() === channelId.toString()) {
+    throw new ApiError(400, "You cannot subscribe to your own channel");
+  }
+
+  const channel = await User.findById(channelId);
+  if (!channel) {
+    throw new ApiError(404, "Channel does not exist");
   }
 
   const existingSub = await Subscription.findOne({
@@ -27,8 +33,9 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 
   if (existingSub) {
     await Subscription.findByIdAndDelete(existingSub._id);
+    const subscribersCount = await Subscription.countDocuments({ channel: channelId });
     return res.status(200).json(
-      new ApiResponse(200, { isSubscribed: false }, "Unsubscribed successfully")
+      new ApiResponse(200, { isSubscribed: false, subscribersCount }, "Unsubscribed successfully")
     );
   }
 
@@ -36,9 +43,10 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     subscriber: subscriberId,
     channel: channelId,
   });
+  const subscribersCount = await Subscription.countDocuments({ channel: channelId });
 
   return res.status(201).json(
-    new ApiResponse(201, { isSubscribed: true, subscription: newSub }, "Subscribed successfully")
+    new ApiResponse(201, { isSubscribed: true, subscribersCount, subscription: newSub }, "Subscribed successfully")
   );
 });
 
@@ -47,9 +55,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
 
   if (!isValidObjectId(channelId)) {
-    return res.status(200).json(
-      new ApiResponse(200, { subscribers: [], count: 14200 }, "Subscribers fetched successfully")
-    );
+    throw new ApiError(400, "Invalid channel ID");
   }
 
   const subscribers = await Subscription.aggregate([
@@ -96,9 +102,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
   const { subscriberId } = req.params;
 
   if (!isValidObjectId(subscriberId)) {
-    return res.status(200).json(
-      new ApiResponse(200, { channels: [], count: 0 }, "Channels fetched successfully")
-    );
+    throw new ApiError(400, "Invalid subscriber ID");
   }
 
   const channels = await Subscription.aggregate([

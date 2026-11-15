@@ -8,6 +8,9 @@ import { v2 as cloudinary } from "cloudinary";
 import { app } from "../src/app.js";
 import { User } from "../src/models/user.model.js";
 import { Video } from "../src/models/video.model.js";
+import { Like } from "../src/models/like.model.js";
+import { Subscription } from "../src/models/subscription.model.js";
+import { Comment } from "../src/models/comment.model.js";
 import { generateSignedStreamUrl, verifyStreamSignature } from "../src/utils/mediaSecurity.js";
 
 process.env.ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "test-access-token-secret-for-pulsecast-tests";
@@ -57,24 +60,157 @@ test.before(async () => {
     fs.writeFileSync(testLocalVideoPath, "test-video-content-stream-bytes");
 
     originalFindById = User.findById;
-    User.findById = (id) => ({
-        select: (fields) => {
-            if (String(id) === String(testUser._id)) {
-                return Promise.resolve(testUser);
-            }
-            return Promise.resolve(null);
-        },
-    });
+    User.findById = (id) => {
+        let userObj = null;
+        if (String(id) === String(testUser._id)) {
+            userObj = { ...testUser };
+        } else if (String(id) === "64f1a2b3c4d5e6f7a8b9c0d5") {
+            userObj = { _id: "64f1a2b3c4d5e6f7a8b9c0d5", username: "othercreator", fullName: "Other Creator" };
+        }
+        return {
+            select: () => Promise.resolve(userObj),
+            then: (resolve, reject) => Promise.resolve(userObj).then(resolve, reject),
+        };
+    };
 
     originalVideoFindById = Video.findById;
     Video.findById = (id) => {
+        let v = null;
         if (String(id) === String(mockUnpublishedVideo._id)) {
-            return Promise.resolve(mockUnpublishedVideo);
+            v = { ...mockUnpublishedVideo };
+        } else if (String(id) === String(mockPublishedVideo._id)) {
+            v = { ...mockPublishedVideo };
         }
-        if (String(id) === String(mockPublishedVideo._id)) {
-            return Promise.resolve(mockPublishedVideo);
+        if (!v) {
+            return {
+                populate: () => Promise.resolve(null),
+                then: (resolve, reject) => Promise.resolve(null).then(resolve, reject),
+            };
         }
-        return Promise.resolve(null);
+        v.views = v.views || 0;
+        v.save = async function () { return this; };
+        v.toObject = function () { return { ...v }; };
+
+        return {
+            populate: (field) => {
+                if (field === "owner") {
+                    v.owner = {
+                        _id: testUser._id,
+                        username: testUser.username,
+                        fullName: "Test User",
+                        avatar: "",
+                    };
+                }
+                return Promise.resolve(v);
+            },
+            then: (resolve, reject) => Promise.resolve(v).then(resolve, reject),
+        };
+    };
+
+    const inMemoryLikes = [];
+    Like.countDocuments = async (filter = {}) => {
+        if (filter.video) return inMemoryLikes.filter((l) => String(l.video) === String(filter.video)).length;
+        if (filter.comment) return inMemoryLikes.filter((l) => String(l.comment) === String(filter.comment)).length;
+        return inMemoryLikes.length;
+    };
+    Like.findOne = async (filter) => {
+        return inMemoryLikes.find((l) => {
+            if (filter.video && String(l.video) !== String(filter.video)) return false;
+            if (filter.comment && String(l.comment) !== String(filter.comment)) return false;
+            if (filter.likedBy && String(l.likedBy) !== String(filter.likedBy)) return false;
+            return true;
+        }) || null;
+    };
+    Like.create = async (doc) => {
+        const item = { _id: "64f1a2b3c4d5e6f7a8b9c0d8", ...doc };
+        inMemoryLikes.push(item);
+        return item;
+    };
+    Like.findByIdAndDelete = async (id) => {
+        const idx = inMemoryLikes.findIndex((l) => String(l._id) === String(id));
+        if (idx !== -1) inMemoryLikes.splice(idx, 1);
+        return {};
+    };
+    Like.deleteMany = async () => ({});
+
+    const inMemorySubs = [];
+    Subscription.countDocuments = async (filter = {}) => {
+        if (filter.channel) return inMemorySubs.filter((s) => String(s.channel) === String(filter.channel)).length;
+        return inMemorySubs.length;
+    };
+    Subscription.findOne = async (filter) => {
+        return inMemorySubs.find((s) => {
+            if (filter.channel && String(s.channel) !== String(filter.channel)) return false;
+            if (filter.subscriber && String(s.subscriber) !== String(filter.subscriber)) return false;
+            return true;
+        }) || null;
+    };
+    Subscription.create = async (doc) => {
+        const item = { _id: "64f1a2b3c4d5e6f7a8b9c0d4", ...doc };
+        inMemorySubs.push(item);
+        return item;
+    };
+    Subscription.findByIdAndDelete = async (id) => {
+        const idx = inMemorySubs.findIndex((s) => String(s._id) === String(id));
+        if (idx !== -1) inMemorySubs.splice(idx, 1);
+        return {};
+    };
+
+    const inMemoryComments = [];
+    Comment.aggregate = async () => {
+        return inMemoryComments.map((c) => ({
+            ...c,
+            owner: {
+                _id: testUser._id,
+                username: testUser.username,
+                fullName: "Test User",
+                avatar: "",
+            },
+            likesCount: 0,
+            likes: 0,
+            isLiked: false,
+        }));
+    };
+    Comment.countDocuments = async () => inMemoryComments.length;
+    Comment.create = async (doc) => {
+        const item = {
+            _id: "64f1a2b3c4d5e6f7a8b9c0d6",
+            ...doc,
+            createdAt: new Date().toISOString(),
+        };
+        inMemoryComments.push(item);
+        return item;
+    };
+    Comment.findById = (id) => {
+        const c = inMemoryComments.find((item) => String(item._id) === String(id));
+        if (!c) {
+            return {
+                populate: () => Promise.resolve(null),
+                then: (resolve, reject) => Promise.resolve(null).then(resolve, reject),
+            };
+        }
+        const commentObj = {
+            ...c,
+            owner: c.owner?._id || c.owner || testUser._id,
+            save: async function () { return this; },
+        };
+        return {
+            populate: () => Promise.resolve({
+                ...commentObj,
+                owner: {
+                    _id: testUser._id,
+                    username: testUser.username,
+                    fullName: "Test User",
+                    avatar: "",
+                },
+            }),
+            then: (resolve, reject) => Promise.resolve(commentObj).then(resolve, reject),
+        };
+    };
+    Comment.findByIdAndDelete = async (id) => {
+        const idx = inMemoryComments.findIndex((item) => String(item._id) === String(id));
+        if (idx !== -1) inMemoryComments.splice(idx, 1);
+        return {};
     };
 
     originalCreate = Video.create;
@@ -461,4 +597,148 @@ test("Security Hardening: Rate limiter returns 429 after exceeding auth limit", 
         }
     }
     assert.ok(got429, "Should receive 429 after exceeding the auth rate limit");
+});
+
+// ─── Real Engagement Tests ──────────────────────────────────────────────────
+
+test("Engagement: GET /api/v1/videos/:videoId returns likesCount, isLiked, subscribersCount, isSubscribed", async () => {
+    // 1. Anonymous request
+    const anonRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/${mockPublishedVideo._id}`);
+    assert.equal(anonRes.status, 200);
+    const anonData = await anonRes.json();
+    assert.equal(anonData.success, true);
+    assert.equal(typeof anonData.data.likesCount, "number");
+    assert.equal(anonData.data.isLiked, false);
+    assert.equal(typeof anonData.data.subscribersCount, "number");
+    assert.equal(anonData.data.isSubscribed, false);
+
+    // 2. Authenticated request
+    const authRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/${mockPublishedVideo._id}`, {
+        headers: { Authorization: `Bearer ${validToken}` },
+    });
+    assert.equal(authRes.status, 200);
+    const authData = await authRes.json();
+    assert.equal(authData.success, true);
+    assert.equal(typeof authData.data.likesCount, "number");
+    assert.equal(typeof authData.data.isLiked, "boolean");
+});
+
+test("Engagement: Toggle video like requires auth and updates like status", async () => {
+    // 1. Unauthenticated -> 401
+    const unauthRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/likes/toggle/v/${mockPublishedVideo._id}`, {
+        method: "POST",
+    });
+    assert.equal(unauthRes.status, 401);
+
+    // 2. Like video -> 200/201 with isLiked: true
+    const likeRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/likes/toggle/v/${mockPublishedVideo._id}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${validToken}` },
+    });
+    assert.ok(likeRes.status === 200 || likeRes.status === 201);
+    const likeData = await likeRes.json();
+    assert.equal(likeData.success, true);
+    assert.equal(likeData.data.isLiked, true);
+
+    // 3. Toggle again -> 200 with isLiked: false
+    const unlikeRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/likes/toggle/v/${mockPublishedVideo._id}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${validToken}` },
+    });
+    assert.equal(unlikeRes.status, 200);
+    const unlikeData = await unlikeRes.json();
+    assert.equal(unlikeData.success, true);
+    assert.equal(unlikeData.data.isLiked, false);
+});
+
+test("Engagement: Toggle subscription requires auth and prevents self-subscription", async () => {
+    const channelId = "64f1a2b3c4d5e6f7a8b9c0d5";
+
+    // 1. Unauthenticated -> 401
+    const unauthRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/subscriptions/c/${channelId}`, {
+        method: "POST",
+    });
+    assert.equal(unauthRes.status, 401);
+
+    // 2. Self-subscription -> 400
+    const selfRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/subscriptions/c/${testUser._id}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${validToken}` },
+    });
+    assert.equal(selfRes.status, 400);
+    const selfData = await selfRes.json();
+    assert.equal(selfData.success, false);
+    assert.ok(selfData.message.includes("own channel"));
+
+    // 3. Subscribe to another channel -> 201 with isSubscribed: true
+    const subRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/subscriptions/c/${channelId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${validToken}` },
+    });
+    assert.ok(subRes.status === 200 || subRes.status === 201);
+    const subData = await subRes.json();
+    assert.equal(subData.success, true);
+    assert.equal(subData.data.isSubscribed, true);
+
+    // 4. Toggle unsubscribe -> 200 with isSubscribed: false
+    const unsubRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/subscriptions/c/${channelId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${validToken}` },
+    });
+    assert.equal(unsubRes.status, 200);
+    const unsubData = await unsubRes.json();
+    assert.equal(unsubData.success, true);
+    assert.equal(unsubData.data.isSubscribed, false);
+});
+
+test("Engagement: Comments API supports get, post, edit, delete with authentication", async () => {
+    // 1. GET comments for video -> 200
+    const getRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/comments/${mockPublishedVideo._id}`);
+    assert.equal(getRes.status, 200);
+    const getData = await getRes.json();
+    assert.equal(getData.success, true);
+    assert.ok(Array.isArray(getData.data.docs));
+
+    // 2. Unauthenticated POST comment -> 401
+    const unauthPost = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/comments/${mockPublishedVideo._id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "Great video!" }),
+    });
+    assert.equal(unauthPost.status, 401);
+
+    // 3. Authenticated POST comment -> 201
+    const postRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/comments/${mockPublishedVideo._id}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${validToken}`,
+        },
+        body: JSON.stringify({ content: "Great video!" }),
+    });
+    assert.equal(postRes.status, 201);
+    const postData = await postRes.json();
+    assert.equal(postData.success, true);
+    assert.equal(postData.data.content, "Great video!");
+    const commentId = postData.data._id;
+
+    // 4. Authenticated PATCH comment -> 200
+    const patchRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/comments/c/${commentId}`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${validToken}`,
+        },
+        body: JSON.stringify({ content: "Updated video review!" }),
+    });
+    assert.equal(patchRes.status, 200);
+
+    // 5. Authenticated DELETE comment -> 200
+    const deleteRes = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/comments/c/${commentId}`, {
+        method: "DELETE",
+        headers: {
+            Authorization: `Bearer ${validToken}`,
+        },
+    });
+    assert.equal(deleteRes.status, 200);
 });

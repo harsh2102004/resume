@@ -40,3 +40,13 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
     req.user = user;
     next();
 });
+
+export const optionalJWT = asyncHandler(async (req, _, next) => {
+    try {
+        const user = await authenticateRequest(req);
+        req.user = user;
+    } catch {
+        req.user = null;
+    }
+    next();
+});
