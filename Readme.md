@@ -106,26 +106,29 @@
 
 ### 3. Adaptive Bitrate Transcoding (FFmpeg HLS)
 * **Multi-Bitrate Generation:** An asynchronous background worker encodes uploaded video into Apple **HLS (HTTP Live Streaming)** bundles:
-  * `360p` (640x360 @ 800 kbps, 96 kbps audio)
-  * `720p` (1280x720 @ 2800 kbps, 128 kbps audio)
+  * `360p` (640x360 @ 600 kbps, 64 kbps audio)
+  * `720p` (1280x720 @ 2500 kbps, 128 kbps audio)
+* **Measured Transcoding Performance:** Encodes a 60-second 720p test video at 3.10x realtime for 360p (19.38s) and 2.71x realtime for 720p (22.15s), completing the full multi-bitrate and storyboard pipeline in 65.68s on local test hardware. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 * **HLS Manifest Creation:** Automatically compiles segmented `.ts` chunks with a top-level `master.m3u8` manifest file.
 * **Cross-Platform Static Binaries:** Packaged with `@ffmpeg-installer/ffmpeg` and `@ffprobe-installer/ffprobe` for execution across Windows, Linux (Ubuntu/Debian), and macOS environments.
-* **Dynamic Watermarking:** Applies branded overlay filters during transcode passes via FFmpeg filter graphs (`movie=... overlay=...`).
+* **Dynamic Watermarking:** Applies branded overlay filters during transcode passes via FFmpeg filter graphs when watermark font assets are configured.
 
 ### 4. Storyboard Scrubbing Sprites (WebVTT)
-* **Thumbnail Sprite Grid Generation:** Periodically captures video frames every 5 seconds and stitches them into high-performance `5x5` sprite sheets (`sprite_%03d.jpg`).
+* **Thumbnail Sprite Grid Generation:** Periodically captures video frames every 5 seconds and stitches them into `5x5` sprite sheets (`sprite_%03d.jpg`).
 * **WebVTT Cue Compilation:** Generates structured WebVTT cue files specifying spatial coordinates (`#xywh=x,y,w,h`) for timeline hover previews.
 * **Interactive Player Scrubbing:** As the viewer hovers their mouse along the timeline scrub bar, the player displays a snapshot of the exact scene under the cursor.
 
 ### 5. Native HTTP 206 Partial Content Streaming
-* **Range Header Parser:** Natively parses HTTP `Range: bytes=start-end` request headers.
-* **Chunked Stream Slices:** Serves 1MB sequential video slices directly from Node.js `fs.createReadStream` with `Content-Range` and `Accept-Ranges: bytes` headers.
+* **Range Header Parser:** Natively parses HTTP `Range: bytes=start-end`, `bytes=start-`, and suffix `bytes=-N` request headers safely.
+* **Chunked Stream Slices:** Serves sequential video slices directly from Node.js `fs.createReadStream` with `Content-Range` and `Accept-Ranges: bytes` headers.
+* **Measured Range Performance:** Delivers 1MB video range chunks from a 50MB file with 12.16 ms average TTFB (p50: 6.66 ms) and 70.95 MB/s throughput for sequential streams, and 66.37 ms average TTFB under 20 concurrent streams. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 * **Instantaneous Seeking:** Viewers can click anywhere on the playback timeline without waiting for preceding video data to download.
-* **Out-of-Bounds Protection:** Emits standard `416 Range Not Satisfiable` responses when requested bytes exceed the file size.
+* **Out-of-Bounds Protection:** Emits standard `416 Range Not Satisfiable` responses when requested bytes exceed the file size, and clamps end bytes exceeding file bounds.
 
 ### 6. Synchronized Real-Time Watch Party (WebSockets)
 * **Room-Based Architecture:** Users can spin up instant watch party rooms (`/watch-party/:roomId`) with unique shareable invite links.
 * **Dynamic Host Re-Election:** Rooms elect an active host whose playback controls (`PLAY`, `PAUSE`, `SEEK`) sync to all room members in real time. If the host leaves, the system automatically reassigns host rights to the next active peer.
+* **Measured Synchronization Precision:** Real-time room synchronization yields 2.31 ms average client clock drift (p50: 1.70 ms, p95: 8.80 ms) across a 60-second continuous playback test with seeks every 5 seconds. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 * **Dynamic Drift Compensation:** Client-side algorithm that dynamically tweaks `videoElement.playbackRate` (`1.05x` or `0.95x`) to bring slightly desynchronized clients smoothly back into alignment without audio stutter, and triggers micro-seeks for major latency spikes.
 * **Live Room Chat & Presence:** Integrated real-time room chat, user presence badges, and automatic join/leave notification toasts.
 
@@ -147,7 +150,7 @@
 
 | Domain | Technology / Library | Purpose |
 | :--- | :--- | :--- |
-| **Backend Runtime** | Node.js (v18, v20, v22) | High-concurrency asynchronous runtime |
+| **Backend Runtime** | Node.js (v20, v22) | High-concurrency asynchronous runtime |
 | **Web Framework** | Express.js 4.x | REST API routing and middleware composition |
 | **Media Ingestion** | `@tus/server`, `@tus/file-store` | Open-standard TUS resumable chunked file transfers |
 | **Media Processing** | `fluent-ffmpeg`, `@ffmpeg-installer` | Video transcoding, HLS segmentation, sprite generation |
@@ -349,16 +352,24 @@ npm test
 
 ### Test Suite Execution
 ```text
-✔ GET /api/v1/healthcheck should return 200 OK (109ms)
-✔ TUS Protocol: OPTIONS discovery should declare TUS capabilities (8ms)
-✔ TUS Protocol: POST should reject unauthenticated uploads with 401 (8ms)
-✔ TUS Protocol: POST should create a resumable upload session when authenticated (28ms)
-✔ Media Security: Signed stream URL generation & verification (1ms)
-✔ Media Security: Tampered signature returns HTTP 403 Forbidden (9ms)
-✔ HTTP 206 Streaming: Should return 400 for invalid video ObjectId format (7ms)
+✔ Auth: 8 tests passing (register, login, refresh token, logout, protected routes)
+✔ Social: 5 tests passing (likes, subscriptions, self-sub prevention, comments CRUD)
+✔ Streaming: 13 tests passing (Range cases, file bounds clamping, signed URLs)
+✔ Uploads: 5 tests passing (TUS OPTIONS, unauth 401, fake token 401, valid 201)
+✔ Videos: 6 tests passing (ownership permissions, update/delete 403, visibility)
+✔ Watch Party: 4 tests passing (host assignment, sync broadcasts, permissions, handover)
 
-ℹ tests 7 | pass 7 | fail 0 | cancelled 0
+ℹ tests 41 | pass 41 | fail 0 | cancelled 0
 ```
+
+### Performance Benchmarks
+Reproducible benchmark scripts are included in `scripts/bench/`:
+```bash
+npm run bench:stream      # Measures HTTP 206 TTFB & throughput (sequential + concurrent)
+npm run bench:transcode   # Measures 60s 720p FFmpeg multi-bitrate transcode & storyboard speed
+npm run bench:sync        # Simulates 1 host + 4 client player clocks for 60s measuring drift
+```
+Detailed environment specifications, methodology, and honest limitations are documented in **[docs/BENCHMARKS.md](docs/BENCHMARKS.md)**.
 
 ### GitHub Actions CI/CD (`.github/workflows/ci.yml`)
 On every push and pull request to `main`, GitHub Actions triggers a build pipeline that:
@@ -378,6 +389,8 @@ pulsecast/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml               # Automated GitHub Actions CI/CD Pipeline
+├── docs/
+│   └── BENCHMARKS.md            # Hardware specs, methodology & measured metrics
 ├── frontend/                    # React 19 Client Application
 │   ├── src/
 │   │   ├── components/          # Reusable UI (Navbar, Player, Comments, Room)
@@ -392,6 +405,11 @@ pulsecast/
 │   ├── vercel.json              # Client SPA routing rewrite rules
 │   └── vite.config.js
 ├── public/                      # Static assets & temporary uploads
+├── scripts/
+│   └── bench/                   # Reproducible benchmarks (transcode, stream, sync)
+│       ├── stream.bench.js
+│       ├── sync.bench.js
+│       └── transcode.bench.js
 ├── src/                         # Backend Application Source
 │   ├── controllers/             # Express controllers (user, video, stream, etc.)
 │   ├── db/                      # MongoDB connection bootstrap
