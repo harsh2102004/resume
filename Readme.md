@@ -1,169 +1,197 @@
-# PulseCast — Production-Grade Distributed Media Streaming & Watch Party Platform
+# PulseCast — Distributed Media Streaming Engine & Watch Party Platform
 
-<div align="center">
+PulseCast is a production-grade distributed media streaming engine and real-time synchronized watch party platform built with Node.js, Express, BullMQ, FFmpeg, MongoDB, and React.
 
-![PulseCast Banner](https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&auto=format&fit=crop&q=80)
-
-[![PulseCast CI/CD Pipeline](https://github.com/harsh2102004/resume/actions/workflows/ci.yml/badge.svg)](https://github.com/harsh2102004/resume/actions/workflows/ci.yml)
-[![Node.js Version](https://img.shields.io/badge/Node.js-v20%20|%20v22-green.svg)](https://nodejs.org/)
-[![React Version](https://img.shields.io/badge/React-19.0.0-blue.svg)](https://react.dev/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Deployed on Render](https://img.shields.io/badge/Backend-Render-46E3B7.svg)](https://pulsecast-qff8.onrender.com)
-[![Deployed on Vercel](https://img.shields.io/badge/Frontend-Vercel-000000.svg)](https://resume-zeta-one-86.vercel.app)
-
-**A high-performance media platform featuring TUS resumable uploads, Cloudinary CDN delivery, FFmpeg HLS adaptive bitrate transcoding, WebVTT storyboard scrubbing sprites, native HTTP 206 chunked streaming, and synchronized real-time Watch Party rooms.**
-
-[Live Web Application](https://resume-zeta-one-86.vercel.app) • [API Service](https://pulsecast-qff8.onrender.com/api/v1/healthcheck) • [Documentation](#-core-engine-features)
-
-</div>
+The system handles the entire video lifecycle: chunked resumable video uploads via the open-standard TUS protocol, asynchronous multi-bitrate HLS transcoding (360p, 720p) and WebVTT storyboard generation offloaded to a Redis/BullMQ background queue, native HTTP 206 partial content streaming with byte-range clamping, time-expiring HMAC-SHA256 signed playback URLs, and low-latency synchronized watch party rooms with host-authoritative controls and sliding-window rate-limited chat.
 
 ---
 
-## 📑 Table of Contents
+## 🌐 Live Deployments & Demo
 
-- [System Architecture](#-system-architecture)
-- [Live Deployments](#-live-deployments)
-- [Core Engine Features](#-core-engine-features)
-  - [1. Resumable Ingestion (TUS Protocol)](#1-resumable-video-ingestion-tus-protocol)
-  - [2. Cloudinary Global CDN Media Pipeline](#2-cloudinary-global-cdn-media-pipeline)
-  - [3. Adaptive Bitrate Transcoding (FFmpeg HLS)](#3-adaptive-bitrate-transcoding-ffmpeg-hls)
-  - [4. Storyboard Scrubbing Sprites (WebVTT)](#4-storyboard-scrubbing-sprites-webvtt)
-  - [5. Native HTTP 206 Partial Content Streaming](#5-native-http-206-partial-content-streaming)
-  - [6. Synchronized Real-Time Watch Party (WebSockets)](#6-synchronized-real-time-watch-party-websockets)
-  - [7. Media Tokenization & Stream Security](#7-media-tokenization--stream-security)
-  - [8. Channel Profiles & Social Engagement](#8-channel-profiles--social-engagement)
-- [Technology Stack](#-technology-stack)
-- [REST API Reference](#-rest-api-reference)
-- [WebSocket Protocol Specification](#-websocket-protocol-specification)
-- [Database Schema & Data Models](#-database-schema--data-models)
-- [Local Development & Setup Guide](#-local-development--setup-guide)
-- [Automated Testing & CI/CD Pipeline](#-automated-testing--cicd-pipeline)
-- [Project Directory Structure](#-project-directory-structure)
-- [Contributing & License](#-license)
+* **Web Client**: [https://resume-zeta-one-86.vercel.app](https://resume-zeta-one-86.vercel.app)
+* **Backend API Healthcheck**: [https://pulsecast-qff8.onrender.com/api/v1/healthcheck](https://pulsecast-qff8.onrender.com/api/v1/healthcheck)
+* **Demo Video / GIF**:
+<!-- DEMO VIDEO / GIF PLACEHOLDER: Replace this line with your 60-90 second demo video or GIF link (e.g. [![PulseCast Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID) or ![Demo GIF](path/to/demo.gif)) -->
 
 ---
 
-## 🏗️ System Architecture
+## ✨ Features
 
+* **Resumable video ingestion**: Standard-compliant TUS protocol (`@tus/server`) uploads with client-side pause/resume controls and automatic byte-offset resumption.
+* **Asynchronous queue-based processing**: Transcoding workloads are decoupled from the HTTP API process using BullMQ and Redis (`video-processing` queue).
+* **Adaptive multi-bitrate HLS transcoding**: Asynchronous generation of 360p and 720p HLS streams, segmented `.ts` chunks, and a `master.m3u8` manifest using FFmpeg.
+* **Timeline scrubbing previews**: Extraction of 5x5 keyframe sprite sheets and WebVTT cue files (`#xywh`) for video player hover scrubbing.
+* **Hybrid media storage**: Persistent local disk storage with automatic Cloudinary CDN asset synchronization when credentials are configured.
+* **Native HTTP 206 range streaming**: RFC-compliant byte-range handling (`bytes=start-end`, `bytes=start-`, `bytes=-N`) with bounds clamping and out-of-bounds `416` protection.
+* **HMAC-SHA256 signed stream security**: Time-expiring signed playback tokens with constant-time verification (`crypto.timingSafeEqual`) and owner-only unpublished stream protection.
+* **Host-authoritative watch parties**: Real-time synchronized playback rooms on Socket.IO (`/watch-party`) where only the active room host can dispatch `PLAY`, `PAUSE`, and `SEEK` actions.
+* **Automatic host re-election**: Seamless handover of room host privileges to the next connected participant when the active host disconnects.
+* **Dynamic drift compensation**: Heartbeat query/ack round-trip latency measurements with dynamic playback rate micro-adjustments (`0.95x`–`1.05x`) and auto-seeks.
+* **Live in-room chat**: Synchronized room messaging with 500-character payload limits and sliding-window rate limiting (5 messages per 5 seconds).
+* **User authentication & session rotation**: Bcrypt password hashing, signed JWT access tokens in cookies/headers, and refresh token database rotation.
+* **Social engagement & interaction**: Video likes, comment CRUD, channel subscriptions with self-subscription prevention, and creator dashboard analytics.
+* **Defensive API hardening**: Strict CORS origin whitelisting, Helmet security headers, Zod request body validation, and route-specific rate limiting via `express-rate-limit`.
+
+---
+
+## 🏗️ Architecture
+
+```text
+                             [ Web Client (React 19 + Hls.js + Socket.IO) ]
+                                  │                               │
+                  HTTP REST / TUS │                               │ WebSockets (/watch-party)
+                                  ▼                               ▼
+                 ┌────────────────────────────────┐     ┌───────────────────────────────────┐
+                 │     Express.js API Server      │     │     Socket.IO Real-Time Engine    │
+                 │  (Helmet, CORS, Rate Limiters, │     │  (Host-Authoritative Sync, Chat,  │
+                 │   Zod Validators, JWT Auth)    │     │   Drift Measurement, Heartbeats)  │
+                 └────────┬──────────────┬────────┘     └───────────────────────────────────┘
+                          │              │
+               (TUS Finish: Enqueue)     │ (Queries & Writes)
+                          │              ▼
+                          │     ┌──────────────────┐
+                          │     │  MongoDB Database│
+                          │     │  (Users, Videos, │
+                          │     │  Likes, Comments,│
+                          │     │  Subscriptions)  │
+                          │     └──────────────────┘
+                          ▼
+               ┌──────────────────────┐
+               │  Redis Cache / Queue │
+               │ (BullMQ: video-proc) │
+               └──────────┬───────────┘
+                          │
+                          ▼ (Pulls Job: Concurrency 2)
+               ┌──────────────────────────────────────┐
+               │        BullMQ Worker Process         │
+               │   (src/workers/index.js + FFmpeg)    │
+               ├──────────────────────────────────────┤
+               │  1. Generate WebVTT Storyboard (5x5) │
+               │  2. Transcode 360p & 720p HLS Chunks │
+               │  3. Assemble master.m3u8 Manifest    │
+               └──────────┬───────────────────────────┘
+                          │
+                          ▼
+        ┌───────────────────────────────────┐
+        │       Media Storage Target        │
+        ├─────────────────┬─────────────────┤
+        │  Cloudinary CDN │   Local Disk    │
+        │  (if configured)│ (storage/uploads│
+        │                 │  public/uploads)│
+        └─────────────────┴─────────────────┘
 ```
-                                  [ Client Layer ]
-              ┌───────────────────────────────────────────────────────┐
-              │  React 19 + Vite + Tailwind CSS + Hls.js + Socket.io  │
-              └───────────────────┬───────────────┬───────────────────┘
-                                  │               │
-       (1) Resumable Ingestion    │               │  (4) Synchronized Watch Party
-       (Chunked PATCH / TUS)      │               │  (WebSockets /watch-party)
-                                  ▼               ▼
-                     ┌────────────────────────────────┐
-                     │     Node.js / Express Core     │
-                     │  (Authentication, Rate Limits) │
-                     └────────────┬───────────────┬───┘
-                                  │               │
-            ┌─────────────────────┴───────┐       └─────────────────────┐
-            ▼                             ▼                             ▼
-  [ Local Staging / Disk ]     [ Cloudinary CDN Engine ]     [ Socket.io Room Sync ]
-            │                  (Chunked Large Uploads)       (Host Election, Drift Compensation)
-            ▼                             │
-  [ Asynchronous Workers ]                │
-   ├── FFmpeg HLS Worker                  │
-   │   (360p, 720p, master.m3u8)          │
-   └── WebVTT Storyboard Worker           │
-       (5x5 sprite sheets, cues)          │
-            │                             │
-            └──────────────┬──────────────┘
-                           ▼
-                  [ MongoDB Atlas ]
-        (Users, Videos, Subscriptions, Likes,
-         Comments, Playlists, Aggregations)
-```
 
 ---
 
-## 🌐 Live Deployments
+## 🛠️ Tech Stack
 
-| Component | Platform | URL | Status |
-| :--- | :--- | :--- | :--- |
-| **Frontend Web Client** | Vercel | [https://resume-zeta-one-86.vercel.app](https://resume-zeta-one-86.vercel.app) | `Active (Production)` |
-| **Backend REST & WS Engine** | Render | [https://pulsecast-qff8.onrender.com](https://pulsecast-qff8.onrender.com) | `Active (Production)` |
-| **Database Cluster** | MongoDB Atlas | Cloud-hosted Replica Set | `Connected` |
-| **Media Library & CDN** | Cloudinary | Dedicated Media Bucket (`pulsecast/videos`) | `Operational` |
-
----
-
-## ⚡ Core Engine Features
-
-### 1. Resumable Video Ingestion (TUS Protocol)
-* **Standard-Compliant Handshake:** Implements the open-standard **TUS resumable upload protocol** (`POST`, `PATCH`, `HEAD`, `OPTIONS`) powered by `@tus/server` and `@tus/file-store`.
-* **Network-Resilient Chunking:** Breaks massive media files into deterministic byte chunks (2MB default). If a user experiences an interrupted Wi-Fi or mobile network drop, the client issues a `HEAD` request to query the server's exact `Upload-Offset` and resumes immediately without restarting from zero.
-* **Client-Side Pause & Resume Controls:** Full interactive UI with progress percentage, uploaded vs. total byte counters, transfer speed indicators, and pause/resume buttons.
-* **Protected Upload Gate:** Authenticated upload sessions verified via JWT bearer tokens.
-
-### 2. Cloudinary Global CDN Media Pipeline
-* **Chunked Large Uploads:** Uses `cloudinary.uploader.upload_large` with 6MB chunking to upload high-definition video files directly to Cloudinary's media library in the `pulsecast/videos` directory.
-* **Permanent CDN Availability:** Media files are automatically assigned high-availability HTTPS CDN links, ensuring video availability even across container restarts and zero-downtime server redeployments.
-* **Dynamic Poster Frame Generation:** Automatically derives crystal-clear HD video preview thumbnails from video keyframes (`.jpg` extension mapping) with no secondary rendering cost.
-* **Graceful Local-to-Cloud Fallback:** If cloud credentials or networks are unavailable, the engine gracefully falls back to local disk persistence and HTTP 206 chunked streaming.
-
-### 3. Adaptive Bitrate Transcoding (FFmpeg HLS)
-* **Multi-Bitrate Generation:** An asynchronous background worker encodes uploaded video into Apple **HLS (HTTP Live Streaming)** bundles:
-  * `360p` (640x360 @ 600 kbps, 64 kbps audio)
-  * `720p` (1280x720 @ 2500 kbps, 128 kbps audio)
-* **Measured Transcoding Performance:** Encodes a 60-second 720p test video at 3.10x realtime for 360p (19.38s) and 2.71x realtime for 720p (22.15s), completing the full multi-bitrate and storyboard pipeline in 65.68s on local test hardware. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
-* **HLS Manifest Creation:** Automatically compiles segmented `.ts` chunks with a top-level `master.m3u8` manifest file.
-* **Cross-Platform Static Binaries:** Packaged with `@ffmpeg-installer/ffmpeg` and `@ffprobe-installer/ffprobe` for execution across Windows, Linux (Ubuntu/Debian), and macOS environments.
-* **Dynamic Watermarking:** Applies branded overlay filters during transcode passes via FFmpeg filter graphs when watermark font assets are configured.
-
-### 4. Storyboard Scrubbing Sprites (WebVTT)
-* **Thumbnail Sprite Grid Generation:** Periodically captures video frames every 5 seconds and stitches them into `5x5` sprite sheets (`sprite_%03d.jpg`).
-* **WebVTT Cue Compilation:** Generates structured WebVTT cue files specifying spatial coordinates (`#xywh=x,y,w,h`) for timeline hover previews.
-* **Interactive Player Scrubbing:** As the viewer hovers their mouse along the timeline scrub bar, the player displays a snapshot of the exact scene under the cursor.
-
-### 5. Native HTTP 206 Partial Content Streaming
-* **Range Header Parser:** Natively parses HTTP `Range: bytes=start-end`, `bytes=start-`, and suffix `bytes=-N` request headers safely.
-* **Chunked Stream Slices:** Serves sequential video slices directly from Node.js `fs.createReadStream` with `Content-Range` and `Accept-Ranges: bytes` headers.
-* **Measured Range Performance:** Delivers 1MB video range chunks from a 50MB file with 12.16 ms average TTFB (p50: 6.66 ms) and 70.95 MB/s throughput for sequential streams, and 66.37 ms average TTFB under 20 concurrent streams. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
-* **Instantaneous Seeking:** Viewers can click anywhere on the playback timeline without waiting for preceding video data to download.
-* **Out-of-Bounds Protection:** Emits standard `416 Range Not Satisfiable` responses when requested bytes exceed the file size, and clamps end bytes exceeding file bounds.
-
-### 6. Synchronized Real-Time Watch Party (WebSockets)
-* **Room-Based Architecture:** Users can spin up instant watch party rooms (`/watch-party/:roomId`) with unique shareable invite links.
-* **Dynamic Host Re-Election:** Rooms elect an active host whose playback controls (`PLAY`, `PAUSE`, `SEEK`) sync to all room members in real time. If the host leaves, the system automatically reassigns host rights to the next active peer.
-* **Measured Synchronization Precision:** Real-time room synchronization yields 2.31 ms average client clock drift (p50: 1.70 ms, p95: 8.80 ms) across a 60-second continuous playback test with seeks every 5 seconds. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
-* **Dynamic Drift Compensation:** Client-side algorithm that dynamically tweaks `videoElement.playbackRate` (`1.05x` or `0.95x`) to bring slightly desynchronized clients smoothly back into alignment without audio stutter, and triggers micro-seeks for major latency spikes.
-* **Live Room Chat & Presence:** Integrated real-time room chat, user presence badges, and automatic join/leave notification toasts.
-
-### 7. Media Tokenization & Stream Security
-* **HMAC-SHA256 Signed URLs:** Generates signed streaming tokens with configurable expiration timestamps (`?expires=...&signature=...`).
-* **Constant-Time Verification:** Employs `crypto.timingSafeEqual` during cryptographic verification to defend against side-channel timing attacks.
-* **Access Control:** Enforces strict viewing permissions, protecting premium or unlisted media assets.
-
-### 8. Channel Profiles & Social Engagement
-* **Channel Profiles:** Customizable channel avatars, cover banners, subscriber counts, total channel video views, and like statistics.
-* **Interactive Engagements:** Instant like/unlike for videos, comments, and community tweets with optimistic UI updates and state persistence.
-* **Threaded Comment Section:** Full CRUD comment system supporting user mentions, timestamps, and nested interactions.
-* **Playlist Management:** Create, update, reorder, and curate custom video playlists.
-* **Creator Analytics Dashboard:** Real-time stats on total channel views, subscriber trajectories, video counts, and individual video performance metrics.
-
----
-
-## 🛠️ Technology Stack
-
-| Domain | Technology / Library | Purpose |
+| Domain | Technology | Purpose |
 | :--- | :--- | :--- |
-| **Backend Runtime** | Node.js (v20, v22) | High-concurrency asynchronous runtime |
-| **Web Framework** | Express.js 4.x | REST API routing and middleware composition |
-| **Media Ingestion** | `@tus/server`, `@tus/file-store` | Open-standard TUS resumable chunked file transfers |
-| **Media Processing** | `fluent-ffmpeg`, `@ffmpeg-installer` | Video transcoding, HLS segmentation, sprite generation |
-| **Cloud Storage & CDN**| Cloudinary SDK v2 | Chunked large media uploads, global CDN delivery, poster frames |
-| **Real-Time Sockets** | Socket.io 4.x | Bi-directional WebSocket communication for Watch Party rooms |
-| **Database & ORM** | MongoDB Atlas, Mongoose 8.x | Document storage, multi-stage aggregation pipelines, pagination |
-| **Security & Auth** | JSON Web Tokens (`jsonwebtoken`), `bcrypt` | Stateless access/refresh token rotation, password hashing |
-| **Frontend Framework** | React 19, Vite 8.x | Component architecture, fast HMR bundling |
-| **Styling & Design** | Tailwind CSS v4, Lucide Icons | Responsive dark-mode glassmorphic interface |
-| **Video Playback** | Hls.js, HTML5 Media API | Adaptive stream playback, custom controls, WebVTT rendering |
-| **Testing Engine** | Node.js native test runner (`node:test`) | Unit, security, and integration test execution |
-| **CI/CD Pipeline** | GitHub Actions | Automated build, test, and lint validation across matrix |
-| **Hosting & PaaS** | Vercel (Client), Render (API) | Global edge hosting with automated git deployments |
+| **Backend Runtime** | Node.js (v20, v22, v24) | High-concurrency asynchronous runtime |
+| **Web Framework** | Express.js 4.18.2 | REST API routing and middleware pipeline |
+| **Media Ingestion** | `@tus/server` 2.4.6, `@tus/file-store` 2.1.1 | Standard-compliant TUS chunked resumable file transfers |
+| **Job Queue** | BullMQ 6.7.6, IORedis 6.0.0 | Redis-backed background video processing queue |
+| **Media Processing** | `fluent-ffmpeg` 2.1.3, `@ffmpeg-installer/ffmpeg` 1.1.0 | Multi-bitrate HLS segmentation, sprite sheets, WebVTT |
+| **Cloud CDN Storage**| Cloudinary SDK 1.41.0 | Remote media hosting fallback & CDN asset delivery |
+| **Real-Time Sockets** | Socket.IO 4.8.4 | Low-latency WebSockets for Watch Party rooms |
+| **Database & ODM** | MongoDB, Mongoose 8.0.0 | Data modeling, pagination, compound indexing |
+| **Authentication & Crypto** | `jsonwebtoken` 9.0.2, `bcrypt` 5.1.1, Node `crypto` | Access/refresh tokens, password hashing, HMAC stream signing |
+| **Security & Validation** | `helmet` 8.3.0, `express-rate-limit` 8.7.4, `zod` 4.6.7 | HTTP header defense, IP rate limiting, schema validation |
+| **Frontend Framework** | React 19.2.8, Vite 8.2.0 | Reactive component architecture, SPA routing |
+| **Frontend Routing** | React Router 7.18.2 | Client-side page navigation and auth redirection |
+| **Video Playback** | Hls.js 1.7.4, HTML5 Video API | Adaptive HLS stream decoding, scrubbing preview overlays |
+| **Styling** | Tailwind CSS 4.3.3 | Dark-mode glassmorphic responsive UI |
+| **Testing Engine** | Node.js Native Test Runner (`node:test`, `node:assert/strict`) | Unit, integration, security, and socket test suites |
+| **In-Memory Database** | `mongodb-memory-server` 11.3.0 | Zero-dependency isolated test database bootstrap |
+| **Code Coverage** | `c8` 12.0.0 | Test coverage reporting |
+| **Containerization** | Docker, Docker Compose (`node:20-alpine`, `mongo:7`, `redis:7-alpine`) | Production container packaging and local orchestration |
+
+---
+
+## 💻 Setup & Installation
+
+### Prerequisites
+* **Node.js**: v20.0.0 or higher
+* **MongoDB**: Local MongoDB instance or MongoDB Atlas cluster
+* **Redis**: Local or cloud Redis instance (v6+ or v7-alpine)
+* **Cloudinary** *(Optional)*: Cloud credentials for remote CDN storage (falls back to local disk if omitted)
+
+### 1. Environment Configuration
+
+Create a `.env` file in the project root based on `.env.sample`:
+
+```env
+# Server & Runtime
+PORT=8000
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:5173,http://localhost:3000
+
+# Database
+MONGODB_URI=mongodb://localhost:27017
+DB_NAME=pulsecast
+
+# Redis & Background Queue
+REDIS_URL=redis://localhost:6379
+
+# JWT Authentication
+ACCESS_TOKEN_SECRET=your_super_secret_access_token_key_here_32_chars
+ACCESS_TOKEN_EXPIRY=1d
+REFRESH_TOKEN_SECRET=your_super_secret_refresh_token_key_here_32_chars
+REFRESH_TOKEN_EXPIRY=10d
+
+# Media Security & Stream Signing
+STREAM_SECRET=your_secure_hmac_sha256_stream_secret_key_here
+TEST_STREAM_SECRET=test_dev_stream_secret_key_only
+ENFORCE_SIGNED_STREAMS=false
+
+# Media Storage & Transcoding
+UPLOAD_DIR=storage/uploads/resumable
+WATERMARK_FONT=
+
+# Cloudinary CDN (Optional)
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+
+Create `frontend/.env` for the client:
+```env
+VITE_API_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000/watch-party
+```
+
+### 2. Local Run (Three-Process Model)
+
+```bash
+# 1. Install root backend dependencies
+npm install
+
+# 2. Install frontend dependencies
+cd frontend && npm install && cd ..
+
+# 3. Terminal 1: Start the Express API server
+npm run dev
+
+# 4. Terminal 2: Start the BullMQ background video worker
+npm run worker
+
+# 5. Terminal 3: Start the Vite frontend client
+cd frontend && npm run dev
+```
+
+The web client runs at `http://localhost:5173` and the API at `http://localhost:8000`.
+
+### 3. Docker Run
+
+Build and orchestrate the API server, worker, MongoDB, and Redis with healthcheck dependencies:
+
+```bash
+# Production mode (isolated container code)
+docker compose up --build
+
+# Development mode (with live code bind mounts)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
 
 ---
 
@@ -174,280 +202,232 @@ All REST endpoints are rooted under `/api/v1`.
 ### 🔑 Authentication & Users (`/api/v1/users`)
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/register` | Register new user account with avatar and cover image | No |
-| `POST` | `/login` | Authenticate user and receive access & refresh tokens | No |
-| `POST` | `/logout` | Invalidate current user session | Yes |
-| `POST` | `/refresh-token` | Renew expired access token using refresh token | No |
-| `POST` | `/change-password` | Update account password | Yes |
-| `GET` | `/current-user` | Retrieve authenticated user profile | Yes |
-| `PATCH` | `/update-account` | Update full name and email | Yes |
-| `PATCH` | `/avatar` | Upload new user avatar | Yes |
-| `PATCH` | `/cover-image` | Upload new user channel banner | Yes |
-| `GET` | `/c/:username` | Retrieve channel profile and subscriber metrics | Optional |
-| `GET` | `/history` | Fetch user watch history | Yes |
+| `POST` | `/register` | Register user account (multipart avatar/cover, validated) | No (Rate-limited) |
+| `POST` | `/login` | Authenticate with username/email and password | No (Rate-limited) |
+| `POST` | `/logout` | Invalidate current session and clear refresh token | Yes (JWT) |
+| `POST` | `/refresh-token` | Renew access token via refresh token | No (Rate-limited) |
+| `POST` | `/change-password` | Update account password (validated) | Yes (JWT) |
+| `GET` | `/current-user` | Retrieve authenticated user profile | Yes (JWT) |
+| `PATCH` | `/update-account` | Update account full name and email | Yes (JWT) |
+| `PATCH` | `/avatar` | Upload new user avatar image | Yes (JWT) |
+| `PATCH` | `/cover-image` | Upload new user channel banner | Yes (JWT) |
+| `GET` | `/c/:username` | Retrieve channel profile and subscriber metrics | Yes (JWT) |
+| `GET` | `/history` | Fetch user watch history | Yes (JWT) |
 
 ### 🎥 Videos & Streaming (`/api/v1/videos`)
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
-| `ALL` | `/resumable-upload*`| TUS protocol resumable video upload gateway | Yes (on POST) |
+| `ALL` | `/resumable-upload*` | TUS protocol resumable video upload gateway | Yes on POST/PATCH |
 | `GET` | `/` | Query published videos (search, sorting, pagination) | No |
-| `POST` | `/` | Publish new video via multipart upload | Yes |
-| `GET` | `/:videoId` | Get video details, owner profile, and metrics | No |
-| `PATCH` | `/:videoId` | Update video title, description, and thumbnail | Yes |
-| `DELETE` | `/:videoId` | Permanently remove video | Yes |
-| `PATCH` | `/toggle/publish/:videoId` | Toggle video public/unlisted visibility | Yes |
+| `POST` | `/` | Publish new video via multipart upload | Yes (JWT) |
+| `GET` | `/:videoId` | Get video details; increments views | Optional JWT |
+| `PATCH` | `/:videoId` | Update video title, description, thumbnail (validated) | Yes (Owner only) |
+| `DELETE` | `/:videoId` | Permanently remove video and media files | Yes (Owner only) |
+| `PATCH` | `/toggle/publish/:videoId` | Toggle video public/unlisted visibility | Yes (Owner only) |
 | `GET` | `/stream/:videoId` | HTTP 206 chunked range video stream | Optional / Signed |
-| `GET` | `/stream-url/:videoId` | Generate time-expiring HMAC signed stream URL | Yes |
+| `GET` | `/sign-stream/:videoId` | Generate time-expiring HMAC signed stream URL | Yes (JWT) |
 
 ### 💬 Social & Community (`/api/v1`)
-| Group | Method | Endpoint | Description |
-| :--- | :--- | :--- | :--- |
-| **Likes** | `POST` | `/likes/toggle/v/:videoId` | Toggle like on a video |
-| | `POST` | `/likes/toggle/c/:commentId` | Toggle like on a comment |
-| | `POST` | `/likes/toggle/t/:tweetId` | Toggle like on a tweet |
-| | `GET` | `/likes/videos` | Fetch list of videos liked by user |
-| **Comments** | `GET` | `/comments/:videoId` | Get paginated comments for a video |
-| | `POST` | `/comments/:videoId` | Add comment to a video |
-| | `PATCH` | `/comments/c/:commentId` | Edit comment content |
-| | `DELETE` | `/comments/c/:commentId` | Remove comment |
-| **Subscriptions** | `POST` | `/subscriptions/c/:channelId` | Subscribe / unsubscribe from a channel |
-| | `GET` | `/subscriptions/c/:channelId` | Get list of subscribers for a channel |
-| | `GET` | `/subscriptions/u/:subscriberId`| Get list of channels user is subscribed to |
-| **Playlists** | `POST` | `/playlist` | Create new playlist |
-| | `GET` | `/playlist/:playlistId` | Get playlist details and videos |
-| | `PATCH` | `/playlist/:playlistId` | Update playlist title and description |
-| | `DELETE` | `/playlist/:playlistId` | Delete playlist |
-| | `PATCH` | `/playlist/add/:videoId/:playlistId` | Add video to playlist |
-| | `PATCH` | `/playlist/remove/:videoId/:playlistId` | Remove video from playlist |
-| | `GET` | `/playlist/user/:userId` | Get all playlists owned by user |
-| **Dashboard** | `GET` | `/dashboard/stats` | Channel analytics (views, subscribers, likes) |
-| | `GET` | `/dashboard/videos` | All videos uploaded by the channel |
-| **Health** | `GET` | `/healthcheck` | Service liveness validation (`200 OK`) |
+| Group | Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- | :--- |
+| **Comments** | `GET` | `/comments/:videoId` | Get paginated comments for a video | Optional JWT |
+| | `POST` | `/comments/:videoId` | Add comment to a video (validated) | Yes (JWT) |
+| | `PATCH` | `/comments/c/:commentId` | Edit comment content (validated) | Yes (Owner only) |
+| | `DELETE` | `/comments/c/:commentId` | Remove comment | Yes (Owner only) |
+| **Likes** | `POST` | `/likes/toggle/v/:videoId` | Toggle like on a video | Yes (JWT) |
+| | `POST` | `/likes/toggle/c/:commentId` | Toggle like on a comment | Yes (JWT) |
+| | `POST` | `/likes/toggle/t/:tweetId` | Toggle like on a tweet | Yes (JWT) |
+| | `GET` | `/likes/videos` | Fetch list of videos liked by user | Yes (JWT) |
+| **Subscriptions** | `GET` | `/subscriptions/c/:channelId` | Get subscriber list for a channel | No |
+| | `POST` | `/subscriptions/c/:channelId` | Toggle subscription (self-sub blocked) | Yes (JWT) |
+| | `GET` | `/subscriptions/u/:subscriberId` | Get channels a user subscribed to | No |
+| **Playlists** | `POST` | `/playlist` | Create new playlist (validated) | Yes (JWT) |
+| | `GET` | `/playlist/:playlistId` | Get playlist details and videos | Yes (JWT) |
+| | `PATCH` | `/playlist/:playlistId` | Update playlist metadata (validated) | Yes (JWT) |
+| | `DELETE` | `/playlist/:playlistId` | Delete playlist | Yes (JWT) |
+| | `PATCH` | `/playlist/add/:videoId/:playlistId` | Add video to playlist | Yes (JWT) |
+| | `PATCH` | `/playlist/remove/:videoId/:playlistId` | Remove video from playlist | Yes (JWT) |
+| | `GET` | `/playlist/user/:userId` | Get all playlists owned by user | Yes (JWT) |
+| **Tweets** | `POST` | `/tweets` | Create community tweet (validated) | Yes (JWT) |
+| | `GET` | `/tweets/user/:userId` | Get all tweets by a user | Yes (JWT) |
+| | `PATCH` | `/tweets/:tweetId` | Update tweet (validated) | Yes (JWT) |
+| | `DELETE` | `/tweets/:tweetId` | Delete tweet | Yes (JWT) |
+| **Dashboard** | `GET` | `/dashboard/stats` | Channel analytics (views, subscribers, likes) | Yes (JWT) |
+| | `GET` | `/dashboard/videos` | All videos uploaded by channel owner | Yes (JWT) |
+| **Health** | `GET` | `/healthcheck` | Service liveness probe (`200 OK`) | No |
 
 ---
 
-## 🔌 WebSocket Protocol Specification
+## 🔌 WebSocket Events (`/watch-party`)
 
-The real-time Watch Party service runs on the `/watch-party` namespace.
+Watch Party rooms connect over Socket.IO under the `/watch-party` namespace.
 
-```javascript
-import { io } from "socket.io-client";
+### Client-to-Server Events
 
-const socket = io("wss://pulsecast-qff8.onrender.com/watch-party", {
-  transports: ["websocket"]
-});
-```
+* `join-room`: `{ roomId: string, username?: string, videoId?: string }`
+  * Validates `roomId` (trimmed, max 50 chars) and `username` (trimmed, max 30 chars).
+  * Caps maximum participants to 20 per room; emits `room-error` if full.
+* `sync-action`: `{ action: "PLAY" | "PAUSE" | "SEEK", currentTime: number }`
+  * Host-only permission gate: if `socket.id !== room.hostSocketId`, emits `sync-error`.
+  * Validates action to exact enum and verifies `currentTime` is a finite non-negative number.
+* `heartbeat-query`: `{ clientSendTime?: number }`
+  * Queries current server video playback time and echoes client timestamp to compute RTT.
+* `send-message`: `{ message: string }`
+  * Validates message string (max 500 chars).
+  * Enforces sliding-window rate limit (max 5 messages per 5 seconds per socket); emits `chat-error` if exceeded.
 
-### Event Schema
+### Server-to-Client Events
 
-| Event Name | Direction | Payload | Description |
-| :--- | :--- | :--- | :--- |
-| `join-room` | Client ➔ Server | `{ roomId, user: { _id, username } }` | Joins a watch party room |
-| `leave-room` | Client ➔ Server | `{ roomId }` | Leaves current watch room |
-| `sync-state` | Client ➔ Server | `{ roomId, state: { currentTime, isPlaying } }` | Host broadcasts playback timestamp |
-| `player-state-update` | Server ➔ Client | `{ currentTime, isPlaying, hostId, updatedAt }` | Peers synchronize playback state |
-| `host-change` | Server ➔ Client | `{ hostId, hostUsername }` | Notifies room of elected host |
-| `chat-message` | Bi-directional | `{ roomId, message, sender, timestamp }` | Live room chat messaging |
-| `user-joined` | Server ➔ Client | `{ user, activeUsers }` | New peer joined presence list |
-| `user-left` | Server ➔ Client | `{ user, activeUsers }` | Peer disconnected presence update |
-
----
-
-## 🗄️ Database Schema & Data Models
-
-PulseCast uses optimized Mongoose schemas with compound indexes and aggregate pagination:
-
-* **User Schema:** `username`, `email`, `fullName`, `avatar`, `coverImage`, `password` (hashed via bcrypt), `refreshToken`, `watchHistory` (array of `Video` references).
-* **Video Schema:** `videoFile` (CDN or stream URL), `localPath`, `thumbnail`, `title`, `description`, `duration`, `views`, `fileSize`, `mimeType`, `hlsPath`, `transcodingStatus` (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`), `qualities`, `storyboardVtt`, `isPublished`, `owner`.
-* **Subscription Schema:** `subscriber` (`User` ref), `channel` (`User` ref).
-* **Like Schema:** `video` (`Video` ref), `comment` (`Comment` ref), `tweet` (`Tweet` ref), `likedBy` (`User` ref).
-* **Comment Schema:** `content`, `video` (`Video` ref), `owner` (`User` ref).
-* **Playlist Schema:** `name`, `description`, `videos` (array of `Video` refs), `owner` (`User` ref).
-* **Tweet Schema:** `content`, `owner` (`User` ref).
+* `room-state`: `{ roomId, videoId, currentTime, isPlaying, hostSocketId, participants, serverTimestamp }`
+  * Dispatched to connecting client with live calculated playback timestamp.
+* `user-joined`: `{ user, participants, hostSocketId }`
+  * Broadcast to room peers when a new user joins.
+* `sync-action`: `{ action, currentTime, senderId, senderName, serverTimestamp }`
+  * Broadcast to all room peers when the host executes a play, pause, or seek.
+* `heartbeat-ack`: `{ serverTime, isPlaying, serverTimestamp, clientSendTime }`
+  * Emitted back to client for drift calculation and clock alignment.
+* `chat-message`: `{ id, senderId, senderName, message, timestamp }`
+  * Broadcast to all room participants on successful message delivery.
+* `user-left`: `{ userId, username, participants, hostSocketId }`
+  * Broadcast to remaining peers when a user disconnects.
+* `host-changed`: `{ newHost, hostSocketId }`
+  * Broadcast when the host disconnects and rights are handed to the next active peer.
+* `room-error` / `sync-error` / `chat-error`: `{ message: string }`
+  * Dispatched directly to offending socket on validation failure or limit breach.
 
 ---
 
-## 💻 Local Development & Setup Guide
+## 🧪 Testing & CI Pipeline
 
-### 1. Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **MongoDB**: Local MongoDB instance or MongoDB Atlas URI
-- **Cloudinary Account**: Free tier cloud credentials (Cloud Name, API Key, API Secret)
-
-### 2. Clone Repository
-```bash
-git clone https://github.com/harsh2102004/resume.git pulsecast
-cd pulsecast
-```
-
-### 3. Configure Environment Variables
-Create a `.env` file in the project root:
-```env
-# Server
-PORT=8000
-CORS_ORIGIN=*
-
-# Database
-MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net
-DB_NAME=pulsecast
-
-# JWT Authentication
-ACCESS_TOKEN_SECRET=your_super_secret_access_token_key_here_32_chars
-ACCESS_TOKEN_EXPIRY=1d
-REFRESH_TOKEN_SECRET=your_super_secret_refresh_token_key_here_32_chars
-REFRESH_TOKEN_EXPIRY=10d
-
-# Cloudinary CDN
-CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-
-# Media Security
-STREAM_SECRET=your_hmac_sha256_stream_secret_key
-ENFORCE_SIGNED_STREAMS=false
-```
-
-Create `frontend/.env` for the client:
-```env
-VITE_API_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8000/watch-party
-```
-
-### 4. Install Dependencies
-```bash
-# Install backend dependencies
-npm install
-
-# Install frontend dependencies
-cd frontend
-npm install
-cd ..
-```
-
-### 5. Launch Servers
-Open two terminal windows:
-
-**Terminal 1 (Backend Engine):**
-```bash
-npm run dev
-# Server running at http://localhost:8000
-```
-
-**Terminal 2 (Frontend Client):**
-```bash
-cd frontend
-npm run dev
-# Client running at http://localhost:5173
-```
-
----
-
-## 🧪 Automated Testing & CI/CD Pipeline
-
-PulseCast includes an automated end-to-end integration test suite utilizing Node.js's native test runner (`node:test`) and assertion engine (`node:assert`):
+PulseCast includes an automated test suite executed with Node.js's native test runner (`node:test`) and assertion engine (`node:assert/strict`) backed by `mongodb-memory-server` for zero external database dependencies.
 
 ```bash
+# Run test suite
 npm test
+
+# Run test suite with c8 coverage report
+npm run test:coverage
 ```
 
-### Test Suite Execution
+### Test Coverage Results
+
 ```text
-✔ Auth: 8 tests passing (register, login, refresh token, logout, protected routes)
-✔ Social: 5 tests passing (likes, subscriptions, self-sub prevention, comments CRUD)
-✔ Streaming: 13 tests passing (Range cases, file bounds clamping, signed URLs)
-✔ Uploads: 5 tests passing (TUS OPTIONS, unauth 401, fake token 401, valid 201)
-✔ Videos: 6 tests passing (ownership permissions, update/delete 403, visibility)
-✔ Watch Party: 4 tests passing (host assignment, sync broadcasts, permissions, handover)
+✔ Auth: 8 tests passing (register valid/duplicate/invalid, login valid/invalid, refresh-token, logout, 401 unauth)
+✔ Social: 5 tests passing (toggle like auth/counts, self-sub prevention, sub counts, comments CRUD)
+✔ Streaming: 13 tests passing (Range cases, suffix ranges, clamp bounds, 416 errors, signed URLs, tamper checks)
+✔ Uploads: 5 tests passing (TUS OPTIONS discovery, unauth 401, tampered token 401, valid 201 session, PATCH 401)
+✔ Videos: 6 tests passing (ownership permissions, update/delete 403, visibility filtering, view increments)
+✔ Watch Party: 4 tests passing (host election, sync broadcast, non-host rejection, host disconnect handover)
 
-ℹ tests 41 | pass 41 | fail 0 | cancelled 0
+ℹ tests 41 | pass 41 | fail 0 | cancelled 0 | skipped 0
 ```
 
-### Performance Benchmarks
-Reproducible benchmark scripts are included in `scripts/bench/`:
-```bash
-npm run bench:stream      # Measures HTTP 206 TTFB & throughput (sequential + concurrent)
-npm run bench:transcode   # Measures 60s 720p FFmpeg multi-bitrate transcode & storyboard speed
-npm run bench:sync        # Simulates 1 host + 4 client player clocks for 60s measuring drift
-```
-Detailed environment specifications, methodology, and honest limitations are documented in **[docs/BENCHMARKS.md](docs/BENCHMARKS.md)**.
+* **Code Coverage (c8)**:
+  * Statements: **58.55%**
+  * Branches: **54.92%**
+  * Functions: **58.33%**
+  * Lines: **58.55%**
 
 ### GitHub Actions CI/CD (`.github/workflows/ci.yml`)
-On every push and pull request to `main`, GitHub Actions triggers a build pipeline that:
-1. Provisions Ubuntu environments across Node.js matrix versions (v20.x, v22.x).
-2. Performs deterministic dependency installation using `npm ci` with GitHub Actions npm cache.
-3. Runs automated ESLint linting on the backend codebase.
-4. Executes the full integration and security test suite against an isolated in-memory MongoDB (`mongodb-memory-server`) with code coverage reporting via `c8`.
-5. Runs `npm ci`, `oxlint` linting, and Vite production bundle build in `/frontend`.
-6. Builds the backend production Docker container image (`docker build`).
+
+Every push and pull request to `main` triggers an automated matrix pipeline:
+1. Matrix test across Node.js versions `20.x` and `22.x` on `ubuntu-latest`.
+2. Clean backend dependency installation via `npm ci`.
+3. ESLint static analysis on backend source (`npm run lint`).
+4. Automated execution of all 41 tests with coverage reporting (`npm run test:coverage`).
+5. Frontend dependency installation, oxlint analysis, and Vite production bundle build (`npm run build`).
+6. Production Docker image container build verification (`docker build -t pulsecast-backend:ci .`).
 
 ---
 
-## 📂 Project Directory Structure
+## 📊 Performance Benchmarks
 
-```text
-pulsecast/
-├── .github/
-│   └── workflows/
-│       └── ci.yml               # Automated GitHub Actions CI/CD Pipeline
-├── docs/
-│   └── BENCHMARKS.md            # Hardware specs, methodology & measured metrics
-├── frontend/                    # React 19 Client Application
-│   ├── src/
-│   │   ├── components/          # Reusable UI (Navbar, Player, Comments, Room)
-│   │   ├── config/              # API & WebSocket connection endpoints
-│   │   ├── context/             # AuthContext state management
-│   │   ├── data/                # Sample video assets & recommendations
-│   │   ├── pages/               # Home, Watch, Upload, Profile, Login, Register
-│   │   ├── utils/               # TusUploader client & helpers
-│   │   ├── App.jsx              # Application router
-│   │   └── main.jsx             # Entry point
-│   ├── package.json
-│   ├── vercel.json              # Client SPA routing rewrite rules
-│   └── vite.config.js
-├── public/                      # Static assets & temporary uploads
-├── scripts/
-│   └── bench/                   # Reproducible benchmarks (transcode, stream, sync)
-│       ├── stream.bench.js
-│       ├── sync.bench.js
-│       └── transcode.bench.js
-├── src/                         # Backend Application Source
-│   ├── controllers/             # Express controllers (user, video, stream, etc.)
-│   ├── db/                      # MongoDB connection bootstrap
-│   ├── middlewares/             # Auth, multer, error handling middlewares
-│   ├── models/                  # Mongoose data schemas
-│   ├── routes/                  # Express route definitions
-│   ├── services/                # TUS resumable server service
-│   ├── sockets/                 # Socket.io watch party rooms
-│   ├── utils/                   # Cloudinary uploaders, ApiError, ApiResponse
-│   ├── workers/                 # FFmpeg transcoding & storyboard workers
-│   ├── app.js                   # Express application setup
-│   ├── constants.js             # Global constants & database names
-│   └── index.js                 # Server entry point & socket listener
-├── tests/                       # Native Node.js test suite (with mongodb-memory-server)
-│   ├── helpers/                 # Test harness, DB bootstrap & auth generators
-│   ├── auth.test.js             # Authentication, tokens, password checks
-│   ├── uploads.test.js          # TUS protocol upload tests
-│   ├── videos.test.js           # Video CRUD, permissions, visibility
-│   ├── social.test.js           # Likes, subscriptions, comments
-│   ├── streaming.test.js        # Range & signed URL streaming tests
-│   └── watchparty.test.js       # WebSocket watch room sync tests
-├── vercel.json                  # Root SPA fallback
-├── package.json
-└── README.md
-```
+All metrics below are recorded from reproducible benchmark runs documented in **[docs/BENCHMARKS.md](docs/BENCHMARKS.md)** (measured on an Intel Core i3-1115G4 @ 3.00GHz, 8GB RAM, Windows 11, Node v24.11.0).
+
+### 1. Multi-Bitrate HLS Transcoding (`npm run bench:transcode`)
+* **Input**: 60-second synthetic 720p @ 30fps clip (1.28 MB input).
+* **360p HLS Profile** (640x360 @ 600 kbps): **19.38s** wall-clock (3.10x realtime).
+* **720p HLS Profile** (1280x720 @ 2500 kbps): **22.15s** wall-clock (2.71x realtime).
+* **Full Pipeline** (including 5x5 storyboard sprites & master manifest): **65.68s** (0.91x realtime).
+
+### 2. HTTP 206 Streaming Range Requests (`npm run bench:stream`)
+* **Input**: 50 MB local MP4 video file, 1 MB range slices.
+* **100 Sequential Requests**:
+  * TTFB: **12.16 ms** average (p50: **6.66 ms**, p95: **26.05 ms**).
+  * Throughput: **70.95 MB/s** average (p50: **78.01 MB/s**, p95: **109.02 MB/s**).
+* **20 Concurrent Requests**:
+  * TTFB: **66.37 ms** average (p50: **62.17 ms**, p95: **103.54 ms**).
+  * Throughput: **5.25 MB/s** average (p50: **5.26 MB/s**, p95: **5.55 MB/s**).
+
+### 3. Watch Party WebSockets Clock Synchronization (`npm run bench:sync`)
+* **Workload**: 1 Host + 4 simulated client sockets over 60 seconds with 1 initial PLAY and 12 periodic SEEK actions every 5 seconds.
+* **Client Clock Drift**:
+  * Average: **2.31 ms**
+  * p50 (Median): **1.70 ms**
+  * p95: **8.80 ms**
+  * Maximum Observed: **9.08 ms**
 
 ---
 
-## 📄 License
+## 🔒 Security Architecture
 
-This project is open-source and licensed under the terms of the **[MIT License](LICENSE)**.
+### What Is Implemented
+* **Constant-Time HMAC-SHA256 Token Verification**: Stream signatures use `crypto.timingSafeEqual` to defend against timing side-channel attacks.
+* **Signed URL Token Expiry & Clamping**: Stream expiration timestamps are parsed as integers, rejected on NaN/negative, and strictly clamped between 60 and 86,400 seconds.
+* **Production Startup Safeguards**: The API throws an error at boot in production if `STREAM_SECRET` or `CORS_ORIGIN` are missing or default to open wildcards.
+* **Strict CORS Whitelisting**: Dynamic origin validation with `credentials: true` applied consistently to both Express and Socket.IO servers.
+* **TUS Upload Protection**: Unauthenticated TUS upload initialization is rejected with 401; user ownership is attached on the server from the verified JWT, stripping client metadata overrides.
+* **Owner-Only Media Guards**: Non-owners attempting to update, delete, or stream unpublished media are rejected with 403 Forbidden.
+* **Two-Tier Rate Limiting**: General API limiter (300 req / 15 min) and strict auth limiter (10 req / 15 min for login, register, refresh-token). Stream range endpoints are explicitly excluded to preserve seek responsiveness.
+* **HTTP Security Headers**: `helmet` is configured with `crossOriginResourcePolicy: { policy: "cross-origin" }` and exposed TUS headers.
+* **Schema Validation**: Request bodies for authentication, comments, videos, playlists, and tweets are validated with `zod`.
+* **Socket Validation & Chat Throttling**: 500-character chat limits and a 5-message per 5-second sliding window limit per socket.
+
+### What Is Not Implemented
+* **No Token Blacklist Store**: Refresh tokens are invalidated on logout in the database, but there is no centralized Redis revocation blacklist for instantaneous mid-session JWT invalidation.
+* **No Bot / CAPTCHA Verification**: Registration and login endpoints rely purely on IP rate limits without CAPTCHA or proof-of-work challenges.
+* **No End-to-End Chat Encryption**: Watch party chat messages are transmitted as plaintext JSON over WSS.
+* **No Antivirus / Malware Scanning**: Uploaded video files are checked for MIME type but are not scanned through an antivirus engine prior to transcoding.
+* **Static Segment Token Validation**: Individual `.ts` chunks served under static `/uploads/hls` do not enforce HMAC signatures; signature checks are enforced on the manifest and master stream endpoints.
 
 ---
 
-<div align="center">
+## ⚖️ Design Decisions & Trade-Offs
 
-**Developed by [Harsh Pratap Singh](https://github.com/harsh2102004)**
+1. **TUS Resumable Protocol vs. Standard Multipart Uploads**:
+   Standard multipart HTTP uploads fail entirely on transient network disconnects, forcing multi-gigabyte uploads to start over from byte 0. TUS breaks uploads into deterministic chunks with `Upload-Offset` tracking, allowing interrupted mobile and broadband uploads to resume seamlessly.
+2. **Apple HLS vs. Raw Progressive MP4**:
+   Progressive MP4 delivery serves a single static bitrate, causing buffer starvation on slower cellular networks. HLS packages media into adaptive multi-bitrate profiles (360p, 720p) with `.ts` segments, allowing client video players to adjust quality dynamically based on measured bandwidth.
+3. **BullMQ Background Queue vs. In-Process FFmpeg**:
+   Video transcoding is extremely CPU-bound. Running FFmpeg synchronously inside an Express request handler locks Node.js's event loop and risks server crashes under concurrent uploads. Offloading jobs to BullMQ backed by Redis provides worker concurrency control, exponential backoff retries, and failure tracking without blocking the API.
+4. **Host-Authoritative Synchronization vs. Peer-to-Peer Sync**:
+   Allowing all watch party participants to broadcast playback updates creates state race conditions and seek wars. A host-authoritative model establishes a single source of truth for the room clock, while automated host handover guarantees continuity if the host drops.
+5. **WebVTT Keyframe Sprite Sheets vs. Individual Thumbnail Files**:
+   Fetching individual image files during player timeline scrubbing would flood the server with hundreds of small HTTP requests. Stitching frames into 5x5 sprite sheets with WebVTT `#xywh` coordinate cues batches 25 preview thumbnails per network request.
+6. **HTTP Range Clamping vs. Strict 416 Rejection**:
+   Many browsers and media decoders send speculative Range headers where the requested end byte exceeds the file size. Throwing `416 Range Not Satisfiable` interrupts player buffering; clamping the end byte to `fileSize - 1` and returning `206 Partial Content` ensures uninterrupted seeking.
 
-*Built with Node.js, Express, FFmpeg, Cloudinary, WebSockets, and React 19.*
+---
 
-</div>
+## ⚠️ Known Limitations
+
+1. **Single-Node Socket.IO In-Memory Rooms**:
+   Room state and socket mappings are currently stored in memory (`Map`). Scaling the API horizontally across multiple servers requires configuring `@socket.io/redis-adapter` so room state is shared across instances.
+2. **No Production Concurrency Load Testing**:
+   While unit, integration, and micro-benchmarks pass, the platform has not undergone distributed load testing simulating thousands of simultaneous viewers or concurrent transcoding queues.
+3. **CPU-Bound Software Transcoding**:
+   The transcoding worker relies on software-based `libx264` (`-preset veryfast`). Transcoding times scale directly with CPU capabilities; hardware-accelerated encoders (NVIDIA NVENC, Intel QuickSync, Apple VideoToolbox) are not currently utilized.
+4. **Static HLS Segment Access**:
+   While master stream endpoints enforce HMAC signatures, individual `.ts` HLS chunks are statically routed under `/uploads/hls` and do not re-verify HMAC signatures per chunk.
+5. **Loopback Benchmark Caveats**:
+   The synchronization benchmark in `docs/BENCHMARKS.md` was conducted over local loopback (`127.0.0.1`) with simulated player clocks; real-world mobile networks with WAN jitter, packet loss, and browser audio decode buffer latency will observe higher drift.
+
+---
+
+## 📄 License & Author
+
+This project is licensed under the terms of the **[MIT License](LICENSE)**.
+
+* **Author**: Harsh Pratap Singh
+* **GitHub**: [@harsh2102004](https://github.com/harsh2102004)
+* **Repository**: [https://github.com/harsh2102004/resume](https://github.com/harsh2102004/resume)
