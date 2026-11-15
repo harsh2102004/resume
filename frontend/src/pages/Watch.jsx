@@ -46,7 +46,7 @@ export const Watch = () => {
           setIsSubscribed(Boolean(json.data.isSubscribed));
           setSubscriberCount(json.data.subscribersCount ?? 0);
         }
-      } catch (err) {
+      } catch {
         if (isMounted) {
           setErrorMessage("Failed to load video details");
         }

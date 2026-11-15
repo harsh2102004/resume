@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const savedUser = localStorage.getItem("pulsecast_user");
       return savedUser ? JSON.parse(savedUser) : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   });
@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
           } else {
             logout();
           }
-        } catch (e) {
+        } catch {
           // offline or server error
         }
       };
@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }) => {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-    } catch (e) {
+    } catch {
       // ignore
     } finally {
       setUser(null);

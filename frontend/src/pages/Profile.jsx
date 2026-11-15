@@ -102,7 +102,7 @@ export const Profile = () => {
     return () => {
       isMounted = false;
     };
-  }, [paramUsername, currentUser?.username, token, isOwnProfile]);
+  }, [paramUsername, currentUser?.username, token, isOwnProfile, profileData?._id]);
 
   const handleCopyChannelLink = () => {
     navigator.clipboard.writeText(window.location.href);

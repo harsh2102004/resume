@@ -54,7 +54,7 @@ export const CommentsSection = ({ videoId }) => {
             setComments([]);
           }
         }
-      } catch (err) {
+      } catch {
         if (isMounted) {
           setErrorMessage("Failed to load comments from server.");
         }
