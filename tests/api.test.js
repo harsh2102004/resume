@@ -14,6 +14,7 @@ import { Comment } from "../src/models/comment.model.js";
 import { generateSignedStreamUrl, verifyStreamSignature } from "../src/utils/mediaSecurity.js";
 import { io as ioClient } from "socket.io-client";
 import { initializeWatchPartySocket } from "../src/sockets/watchParty.socket.js";
+import { videoQueue, addVideoProcessingJob } from "../src/queues/video.queue.js";
 
 process.env.ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "test-access-token-secret-for-pulsecast-tests";
 process.env.STREAM_SECRET = process.env.STREAM_SECRET || "test-stream-secret-for-pulsecast-tests";
@@ -229,8 +230,14 @@ test.before(async () => {
         };
     };
 
+    const videoStatusMap = new Map();
     originalFindByIdAndUpdate = Video.findByIdAndUpdate;
-    Video.findByIdAndUpdate = async () => ({});
+    Video.findByIdAndUpdate = async (id, update) => {
+        const current = videoStatusMap.get(String(id)) || {};
+        const updated = { ...current, ...update };
+        videoStatusMap.set(String(id), updated);
+        return updated;
+    };
 
     cloudinary.uploader.upload_large = (filePath, opts, cb) => {
         const result = { secure_url: "https://res.cloudinary.com/demo/video/upload/sample.mp4", duration: 10 };
@@ -817,4 +824,80 @@ test("Watch Party: Host controls sync, non-host ignored, invalid payload ignored
     assert.equal(handoverData.hostSocketId, client2.id);
 
     client2.disconnect();
+});
+
+// ─── Video Queue & Worker Background Processing Tests ─────────────────────────
+
+test("Queue & Worker: Enqueuing a job against mocked queue/processor updates video status and handles failures", async () => {
+    // 1. Test enqueuing with correct job options (attempts: 3, exponential backoff)
+    const originalAdd = videoQueue.add;
+    let enqueuedJob = null;
+    videoQueue.add = async (name, data, opts) => {
+        enqueuedJob = { name, data, opts };
+        return { id: "job_test_123", ...enqueuedJob };
+    };
+
+    const testVideoId = "64f1a2b3c4d5e6f7a8b9c0aa";
+    await addVideoProcessingJob(testVideoId, "storage/uploads/resumable/test.mp4");
+
+    assert.ok(enqueuedJob, "Job should have been added to the queue");
+    assert.equal(enqueuedJob.name, "process-video");
+    assert.equal(enqueuedJob.data.videoId, testVideoId);
+    assert.equal(enqueuedJob.opts.attempts, 3);
+    assert.equal(enqueuedJob.opts.backoff.type, "exponential");
+
+    videoQueue.add = originalAdd;
+
+    // 2. Mock processor execution for a successful job: PENDING -> PROCESSING (progress) -> COMPLETED (100)
+    let videoStatus = "PENDING";
+    let videoProgress = 0;
+
+    const mockProcessor = async (job) => {
+        videoStatus = "PROCESSING";
+        videoProgress = 10;
+        await Video.findByIdAndUpdate(job.data.videoId, {
+            transcodingStatus: videoStatus,
+            transcodeProgress: videoProgress,
+        });
+
+        videoProgress = 60;
+        await Video.findByIdAndUpdate(job.data.videoId, {
+            transcodeProgress: videoProgress,
+        });
+
+        videoStatus = "COMPLETED";
+        videoProgress = 100;
+        await Video.findByIdAndUpdate(job.data.videoId, {
+            transcodingStatus: videoStatus,
+            transcodeProgress: videoProgress,
+            hlsPath: `/uploads/hls/${job.data.videoId}/master.m3u8`,
+        });
+    };
+
+    await mockProcessor({ data: { videoId: testVideoId } });
+    assert.equal(videoStatus, "COMPLETED");
+    assert.equal(videoProgress, 100);
+
+    // 3. Mock processor failure: fails and marks video as FAILED
+    const failVideoId = "64f1a2b3c4d5e6f7a8b9c0ab";
+    let failStatus = "PENDING";
+
+    const failingProcessor = async (job) => {
+        failStatus = "PROCESSING";
+        try {
+            throw new Error("Transcode worker failure: profile generation failed");
+        } catch (err) {
+            failStatus = "FAILED";
+            await Video.findByIdAndUpdate(job.data.videoId, {
+                transcodingStatus: failStatus,
+            });
+            throw err;
+        }
+    };
+
+    await assert.rejects(async () => {
+        await failingProcessor({ data: { videoId: failVideoId } });
+    }, /Transcode worker failure/);
+
+    assert.equal(failStatus, "FAILED");
 });

@@ -50,6 +50,12 @@ const videoSchema = new Schema(
             enum: ["PENDING", "PROCESSING", "COMPLETED", "FAILED"],
             default: "PENDING"
         },
+        transcodeProgress: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 100
+        },
         qualities: {
             type: [String],
             default: []

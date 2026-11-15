@@ -113,10 +113,11 @@ export const Watch = () => {
     );
   }
 
-  const videoSrc = video.videoFile?.startsWith("http")
-    ? video.videoFile
-    : video.videoFile
-    ? `${API_BASE_URL}${video.videoFile}`
+  const preferredSrc = video.hlsPath || video.videoFile;
+  const videoSrc = preferredSrc?.startsWith("http")
+    ? preferredSrc
+    : preferredSrc
+    ? `${API_BASE_URL}${preferredSrc}`
     : "https://vjs.zencdn.net/v/oceans.mp4";
 
   const vttSrc = video.storyboardVtt
@@ -407,10 +408,23 @@ export const Watch = () => {
 
             {/* Description Box */}
             <div className="glass-panel p-4 rounded-2xl border border-white/5 space-y-2">
-              <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold">
+              <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold flex-wrap">
                 <span className="text-white">{(video?.views || 0).toLocaleString()} views</span>
                 <span>•</span>
                 <span>Published on PulseCast</span>
+                {video?.transcodingStatus && video.transcodingStatus !== "COMPLETED" && (
+                  <>
+                    <span>•</span>
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-medium flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                      <span>
+                        {video.transcodingStatus === "FAILED"
+                          ? "Transcode Failed"
+                          : `Processing… ${video.transcodeProgress || 0}%`}
+                      </span>
+                    </span>
+                  </>
+                )}
               </div>
               <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
                 {video?.description || "Enjoy watching this video in high resolution on PulseCast."}

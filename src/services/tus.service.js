@@ -3,9 +3,7 @@ import fs from "fs";
 import { Server, EVENTS } from "@tus/server";
 import { FileStore } from "@tus/file-store";
 import { Video } from "../models/video.model.js";
-import { transcodeVideoJob } from "../workers/transcode.worker.js";
-import { generateStoryboardJob } from "../workers/storyboard.worker.js";
-import { uploadVideoOnCloudinary } from "../utils/cloudinary.js";
+import { addVideoProcessingJob } from "../queues/video.queue.js";
 
 const uploadDirEnv = process.env.UPLOAD_DIR || "storage/uploads/resumable";
 const resumableUploadDir = path.resolve(uploadDirEnv);
@@ -47,42 +45,19 @@ tusServer.on(EVENTS.POST_FINISH, async (req, res, upload) => {
 
         const storedFilePath = path.join(resumableUploadDir, upload.id);
 
-        let videoUrl = `/api/v1/videos/stream/temp`;
-        let thumbnailUrl = metadata.thumbnail || "/images/default-thumbnail.jpg";
-        let duration = 0;
-
-        // Upload to Cloudinary so video is saved in Cloudinary dashboard and served via CDN
-        try {
-            console.log(`[TUS] Upload finished for ${upload.id}. Uploading to Cloudinary...`);
-            const cloudUpload = await uploadVideoOnCloudinary(storedFilePath);
-            if (cloudUpload?.secure_url) {
-                console.log(`[TUS] Successfully uploaded to Cloudinary: ${cloudUpload.secure_url}`);
-                videoUrl = cloudUpload.secure_url;
-                // Cloudinary generates an image poster automatically by replacing the extension with .jpg
-                if (!metadata.thumbnail || metadata.thumbnail.startsWith("/images/")) {
-                    thumbnailUrl = cloudUpload.secure_url.replace(/\.[^/.]+$/, ".jpg");
-                }
-                if (cloudUpload.duration) {
-                    duration = Math.round(cloudUpload.duration);
-                }
-            } else {
-                console.warn("[TUS] Cloudinary upload returned no secure_url, using local streaming fallback.");
-            }
-        } catch (cloudErr) {
-            console.error("[TUS] Cloudinary upload error in POST_FINISH:", cloudErr);
-        }
-
         const video = await Video.create({
             title,
             description,
-            videoFile: videoUrl,
+            videoFile: `/api/v1/videos/stream/temp`,
             localPath: storedFilePath,
-            thumbnail: thumbnailUrl,
-            duration,
-            fileSize: upload.size,
+            thumbnail: metadata.thumbnail || "/images/default-thumbnail.jpg",
+            duration: 0,
+            fileSize: upload.size || 0,
             mimeType,
             owner,
             isPublished: true,
+            transcodingStatus: "PENDING",
+            transcodeProgress: 0,
         });
 
         if (video.videoFile === `/api/v1/videos/stream/temp`) {
@@ -90,12 +65,8 @@ tusServer.on(EVENTS.POST_FINISH, async (req, res, upload) => {
             await video.save();
         }
 
-        transcodeVideoJob(video._id, storedFilePath).catch((err) => {
-            console.error("Transcode error:", err);
-        });
-        generateStoryboardJob(video._id, storedFilePath).catch((err) => {
-            console.error("Storyboard error:", err);
-        });
+        // Add job to background processing queue and return quickly
+        await addVideoProcessingJob(video._id, storedFilePath);
     } catch (error) {
         console.error("Upload finish error:", error);
     }
