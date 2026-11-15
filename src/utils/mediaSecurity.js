@@ -1,13 +1,26 @@
 import crypto from "crypto";
 
-const STREAM_SECRET = process.env.STREAM_SECRET || process.env.ACCESS_TOKEN_SECRET || "pulsecast_secure_stream_key_2027";
+if (process.env.NODE_ENV === "production" && !process.env.STREAM_SECRET) {
+    throw new Error("STREAM_SECRET environment variable is required in production");
+}
+
+const getStreamSecret = () => {
+    const secret = process.env.STREAM_SECRET || (process.env.NODE_ENV !== "production" ? process.env.TEST_STREAM_SECRET : null);
+    if (!secret) {
+        if (process.env.NODE_ENV === "production") {
+            throw new Error("STREAM_SECRET environment variable is required in production");
+        }
+        throw new Error("STREAM_SECRET environment variable is missing");
+    }
+    return secret;
+};
 
 export const generateSignedStreamUrl = (videoId, userId = "public", expiresInSeconds = 3600) => {
     const expires = Math.floor(Date.now() / 1000) + expiresInSeconds;
     const payload = `${videoId}:${userId}:${expires}`;
 
     const signature = crypto
-        .createHmac("sha256", STREAM_SECRET)
+        .createHmac("sha256", getStreamSecret())
         .update(payload)
         .digest("hex");
 
@@ -30,14 +43,26 @@ export const verifyStreamSignature = (videoId, expires, signature, userId = "pub
         return { valid: false, reason: "Stream URL signature has expired" };
     }
 
+    let streamSecret;
+    try {
+        streamSecret = getStreamSecret();
+    } catch (err) {
+        return { valid: false, reason: err.message };
+    }
+
     const payload = `${videoId}:${userId}:${expiresTimestamp}`;
     const expectedSignature = crypto
-        .createHmac("sha256", STREAM_SECRET)
+        .createHmac("sha256", streamSecret)
         .update(payload)
         .digest("hex");
 
     const expectedBuffer = Buffer.from(expectedSignature, "hex");
-    const receivedBuffer = Buffer.from(signature, "hex");
+    let receivedBuffer;
+    try {
+        receivedBuffer = Buffer.from(signature, "hex");
+    } catch {
+        return { valid: false, reason: "Invalid signature format" };
+    }
 
     if (expectedBuffer.length !== receivedBuffer.length) {
         return { valid: false, reason: "Invalid signature format" };

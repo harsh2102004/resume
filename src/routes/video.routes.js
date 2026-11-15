@@ -10,11 +10,13 @@ import {
 import { streamVideo, getSignedStreamUrl } from "../controllers/stream.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
+import { validate } from "../validators/validate.middleware.js";
+import { updateVideoSchema } from "../validators/video.validator.js";
 
 const router = Router();
 
 router.route("/stream/:videoId").get(streamVideo);
-router.route("/sign-stream/:videoId").get(getSignedStreamUrl);
+router.route("/sign-stream/:videoId").get(verifyJWT, getSignedStreamUrl);
 router.route("/").get(getAllVideos);
 router.route("/:videoId").get(getVideoById);
 
@@ -30,7 +32,7 @@ router.route("/").post(
 router
     .route("/:videoId")
     .delete(verifyJWT, deleteVideo)
-    .patch(verifyJWT, upload.single("thumbnail"), updateVideo);
+    .patch(verifyJWT, upload.single("thumbnail"), validate(updateVideoSchema), updateVideo);
 
 router.route("/toggle/publish/:videoId").patch(verifyJWT, togglePublishStatus);
 

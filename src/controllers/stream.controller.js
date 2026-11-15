@@ -10,7 +10,6 @@ import { generateSignedStreamUrl, verifyStreamSignature } from "../utils/mediaSe
 
 const getSignedStreamUrl = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
-    const { expiresIn = 3600 } = req.query;
 
     if (!isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid Video ID");
@@ -21,8 +20,27 @@ const getSignedStreamUrl = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Video not found");
     }
 
-    const userId = req.user?._id?.toString() || "public";
-    const signedData = generateSignedStreamUrl(videoId, userId, parseInt(expiresIn, 10));
+    if (!req.user?._id) {
+        throw new ApiError(401, "Authentication required to generate signed stream URLs");
+    }
+
+    const userId = req.user._id.toString();
+
+    // If video is unpublished, only its owner can generate signed stream URLs
+    if (!video.isPublished && video.owner?.toString() !== userId) {
+        throw new ApiError(403, "Access denied: You do not have permission to generate stream URLs for this video");
+    }
+
+    const rawExpiresIn = req.query.expiresIn ?? 3600;
+    const parsedExpiresIn = Number(rawExpiresIn);
+
+    if (isNaN(parsedExpiresIn) || !Number.isInteger(parsedExpiresIn)) {
+        throw new ApiError(400, "Invalid expiresIn parameter. Must be an integer.");
+    }
+
+    const clampedExpiresIn = Math.min(Math.max(parsedExpiresIn, 60), 86400);
+
+    const signedData = generateSignedStreamUrl(videoId, userId, clampedExpiresIn);
 
     return res
         .status(200)
@@ -37,45 +55,65 @@ const streamVideo = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid Video ID");
     }
 
-    if (signature || process.env.ENFORCE_SIGNED_STREAMS === "true") {
-        const auth = verifyStreamSignature(videoId, expires, signature, user || "public");
-        if (!auth.valid) {
-            throw new ApiError(403, `Access denied: ${auth.reason}`);
-        }
-    }
-
     const video = await Video.findById(videoId);
     if (!video) {
         throw new ApiError(404, "Video not found");
     }
 
-    // Unpublished videos can only be streamed by their owner
+    // Verify signature if provided
+    let verifiedSignatureUserId = null;
+    if (signature) {
+        const auth = verifyStreamSignature(videoId, expires, signature, user || "public");
+        if (!auth.valid) {
+            throw new ApiError(403, `Access denied: ${auth.reason}`);
+        }
+        verifiedSignatureUserId = user || "public";
+    }
+
+    // When ENFORCE_SIGNED_STREAMS is enabled, require signature for all streams
+    if (process.env.ENFORCE_SIGNED_STREAMS === "true" && !signature) {
+        throw new ApiError(403, "Access denied: Signed stream URL is required");
+    }
+
+    // Unpublished videos require either a valid signature for the owner or the owner's JWT
     if (!video.isPublished) {
-        let requestingUserId = req.user?._id?.toString() || null;
+        const ownerId = video.owner?.toString();
+        let hasValidOwnerAuth = false;
 
-        if (!requestingUserId) {
-            const authHeader =
-                typeof req.header === "function"
-                    ? req.header("Authorization")
-                    : (req.headers?.authorization || req.headers?.Authorization);
+        if (verifiedSignatureUserId && verifiedSignatureUserId === ownerId) {
+            hasValidOwnerAuth = true;
+        }
 
-            const token =
-                req.cookies?.accessToken ||
-                authHeader?.replace(/^Bearer\s+/i, "") ||
-                req.query?.token;
+        if (!hasValidOwnerAuth) {
+            let requestingUserId = req.user?._id?.toString() || null;
 
-            if (token) {
-                try {
-                    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-                    requestingUserId = decoded?._id?.toString();
-                } catch {
-                    // Invalid/expired token
+            if (!requestingUserId) {
+                const authHeader =
+                    typeof req.header === "function"
+                        ? req.header("Authorization")
+                        : (req.headers?.authorization || req.headers?.Authorization);
+
+                const token =
+                    req.cookies?.accessToken ||
+                    authHeader?.replace(/^Bearer\s+/i, "") ||
+                    req.query?.token;
+
+                if (token) {
+                    try {
+                        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+                        requestingUserId = decoded?._id?.toString();
+                    } catch {
+                        // Invalid/expired token
+                    }
                 }
+            }
+
+            if (requestingUserId && requestingUserId === ownerId) {
+                hasValidOwnerAuth = true;
             }
         }
 
-        const ownerId = video.owner?.toString();
-        if (!requestingUserId || requestingUserId !== ownerId) {
+        if (!hasValidOwnerAuth) {
             throw new ApiError(403, "Access denied: Unpublished videos can only be streamed by their owner");
         }
     }

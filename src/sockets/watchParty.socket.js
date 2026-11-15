@@ -1,11 +1,17 @@
 import { Server } from "socket.io";
+import { allowedOrigins } from "../utils/corsOrigins.js";
 
 const activeRooms = new Map();
 
 export const initializeWatchPartySocket = (httpServer) => {
     const io = new Server(httpServer, {
         cors: {
-            origin: process.env.CORS_ORIGIN || "*",
+            origin: (origin, callback) => {
+                if (!origin || allowedOrigins.includes(origin)) {
+                    return callback(null, true);
+                }
+                return callback(new Error(`CORS: origin '${origin}' is not allowed`));
+            },
             methods: ["GET", "POST"],
             credentials: true,
         },

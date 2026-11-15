@@ -11,6 +11,8 @@ import { Video } from "../src/models/video.model.js";
 import { generateSignedStreamUrl, verifyStreamSignature } from "../src/utils/mediaSecurity.js";
 
 process.env.ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "test-access-token-secret-for-pulsecast-tests";
+process.env.STREAM_SECRET = process.env.STREAM_SECRET || "test-stream-secret-for-pulsecast-tests";
+process.env.CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173,http://localhost:3000";
 
 const testUser = {
     _id: "64f1a2b3c4d5e6f7a8b9c0d2",
@@ -39,6 +41,14 @@ const mockUnpublishedVideo = {
     localPath: testLocalVideoPath,
     mimeType: "video/mp4",
 };
+const mockPublishedVideo = {
+    _id: "64f1a2b3c4d5e6f7a8b9c0d3",
+    title: "Published Video",
+    isPublished: true,
+    owner: testUser._id,
+    localPath: testLocalVideoPath,
+    mimeType: "video/mp4",
+};
 
 test.before(async () => {
     if (!fs.existsSync(path.dirname(testLocalVideoPath))) {
@@ -60,6 +70,9 @@ test.before(async () => {
     Video.findById = (id) => {
         if (String(id) === String(mockUnpublishedVideo._id)) {
             return Promise.resolve(mockUnpublishedVideo);
+        }
+        if (String(id) === String(mockPublishedVideo._id)) {
+            return Promise.resolve(mockPublishedVideo);
         }
         return Promise.resolve(null);
     };
@@ -234,6 +247,39 @@ test("TUS Protocol: Upload completion ignores client userId metadata and sets ow
     assert.notEqual(lastCreatedVideo.owner, "attacker-user-id", "Spoofed userId in metadata must be ignored");
 });
 
+test("Sign Stream: GET /api/v1/videos/sign-stream/:videoId without login returns 401", async () => {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/sign-stream/${mockPublishedVideo._id}`);
+    assert.equal(res.status, 401);
+});
+
+test("Sign Stream: GET /api/v1/videos/sign-stream/:videoId with invalid expiresIn returns 400", async () => {
+    const res = await fetch(
+        `http://127.0.0.1:${TEST_PORT}/api/v1/videos/sign-stream/${mockPublishedVideo._id}?expiresIn=not-a-number`,
+        { headers: { Authorization: `Bearer ${validToken}` } }
+    );
+    assert.equal(res.status, 400);
+});
+
+test("Sign Stream: clamps expiresIn between 60 and 86400 seconds", async () => {
+    const now = Math.floor(Date.now() / 1000);
+
+    const resLow = await fetch(
+        `http://127.0.0.1:${TEST_PORT}/api/v1/videos/sign-stream/${mockPublishedVideo._id}?expiresIn=10`,
+        { headers: { Authorization: `Bearer ${validToken}` } }
+    );
+    assert.equal(resLow.status, 200);
+    const dataLow = await resLow.json();
+    assert.ok(dataLow.data.expires >= now + 59 && dataLow.data.expires <= now + 62);
+
+    const resHigh = await fetch(
+        `http://127.0.0.1:${TEST_PORT}/api/v1/videos/sign-stream/${mockPublishedVideo._id}?expiresIn=9999999`,
+        { headers: { Authorization: `Bearer ${validToken}` } }
+    );
+    assert.equal(resHigh.status, 200);
+    const dataHigh = await resHigh.json();
+    assert.ok(dataHigh.data.expires >= now + 86390 && dataHigh.data.expires <= now + 86410);
+});
+
 test("Media Security: Signed stream URL generation & verification", () => {
     const videoId = "64f1a2b3c4d5e6f7a8b9c0d1";
     const userId = "64f1a2b3c4d5e6f7a8b9c0d2";
@@ -252,12 +298,48 @@ test("Media Security: Signed stream URL generation & verification", () => {
     assert.equal(expiredCheck.valid, false);
 });
 
+test("Media Security: Expired signature returns HTTP 403 Forbidden", async () => {
+    const expired = generateSignedStreamUrl(mockPublishedVideo._id, testUser._id, -60);
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}${expired.streamUrl}`);
+    assert.equal(res.status, 403);
+});
+
 test("Media Security: Tampered signature returns HTTP 403 Forbidden", async () => {
-    const videoId = "64f1a2b3c4d5e6f7a8b9c0d1";
-    const fakeSignature = "deadbeef1234567890abcdefdeadbeef1234567890abcdefdeadbeef12345678";
+    const signed = generateSignedStreamUrl(mockPublishedVideo._id, testUser._id, 300);
+    const tamperedSig = signed.signature.slice(0, -4) + "ffff";
     const res = await fetch(
-        `http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${videoId}?expires=${Date.now()}&signature=${fakeSignature}`
+        `http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${mockPublishedVideo._id}?expires=${signed.expires}&signature=${tamperedSig}&user=${testUser._id}`
     );
+    assert.equal(res.status, 403);
+});
+
+test("Media Security: Signature for a different video returns HTTP 403 Forbidden", async () => {
+    const diffSigned = generateSignedStreamUrl("64f1a2b3c4d5e6f7a8b9c999", testUser._id, 300);
+    const res = await fetch(
+        `http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${mockPublishedVideo._id}?expires=${diffSigned.expires}&signature=${diffSigned.signature}&user=${testUser._id}`
+    );
+    assert.equal(res.status, 403);
+});
+
+test("Media Security: Valid signature returns HTTP 200 for stream", async () => {
+    const signed = generateSignedStreamUrl(mockPublishedVideo._id, testUser._id, 300);
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}${signed.streamUrl}`);
+    assert.equal(res.status, 200);
+    const text = await res.text();
+    assert.equal(text, "test-video-content-stream-bytes");
+});
+
+test("Media Security: Valid owner signature allows streaming unpublished video", async () => {
+    const ownerSigned = generateSignedStreamUrl(mockUnpublishedVideo._id, testUser._id, 300);
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}${ownerSigned.streamUrl}`);
+    assert.equal(res.status, 200);
+    const text = await res.text();
+    assert.equal(text, "test-video-content-stream-bytes");
+});
+
+test("Media Security: Non-owner signature rejects streaming unpublished video with 403", async () => {
+    const nonOwnerSigned = generateSignedStreamUrl(mockUnpublishedVideo._id, "64f1a2b3c4d5e6f7a8b9c888", 300);
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}${nonOwnerSigned.streamUrl}`);
     assert.equal(res.status, 403);
 });
 
@@ -319,4 +401,64 @@ test("Security: Unpublished video can only be streamed by its owner", async () =
     assert.equal(ownerRes.status, 200);
     const bodyText = await ownerRes.text();
     assert.equal(bodyText, "test-video-content-stream-bytes");
+});
+
+// ─── New security hardening tests ─────────────────────────────────────────────
+
+test("Security Hardening: Invalid register body returns 400 with validation message", async () => {
+    // Missing password, invalid email
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/users/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName: "A", email: "not-an-email", username: "u" }),
+    });
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    // Message should mention the failing field
+    assert.ok(
+        typeof data.message === "string" && data.message.length > 0,
+        "Response should contain a validation error message"
+    );
+});
+
+test("Security Hardening: Empty body register returns 400", async () => {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/users/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+    });
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.success, false);
+});
+
+test("Security Hardening: Disallowed CORS origin receives no CORS allow header", async () => {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/healthcheck`, {
+        headers: { Origin: "https://evil-site.example.com" },
+    });
+    // The response should NOT carry Access-Control-Allow-Origin for a blocked origin
+    assert.ok(
+        !res.headers.get("access-control-allow-origin"),
+        "Disallowed origin should not receive Access-Control-Allow-Origin header"
+    );
+});
+
+test("Security Hardening: Rate limiter returns 429 after exceeding auth limit", async () => {
+    // The strict auth limiter allows 10 requests per 15 minutes.
+    // We send 11 POST requests to /login; at least the last one must be 429.
+    // Using invalid credentials so the limit counter increments without DB calls.
+    const url = `http://127.0.0.1:${TEST_PORT}/api/v1/users/login`;
+    const body = JSON.stringify({ email: "rate@test.com", password: "password123" });
+    const headers = { "Content-Type": "application/json" };
+
+    let got429 = false;
+    for (let i = 0; i < 12; i++) {
+        const res = await fetch(url, { method: "POST", headers, body });
+        if (res.status === 429) {
+            got429 = true;
+            break;
+        }
+    }
+    assert.ok(got429, "Should receive 429 after exceeding the auth rate limit");
 });
