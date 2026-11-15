@@ -12,6 +12,8 @@ import { Like } from "../src/models/like.model.js";
 import { Subscription } from "../src/models/subscription.model.js";
 import { Comment } from "../src/models/comment.model.js";
 import { generateSignedStreamUrl, verifyStreamSignature } from "../src/utils/mediaSecurity.js";
+import { io as ioClient } from "socket.io-client";
+import { initializeWatchPartySocket } from "../src/sockets/watchParty.socket.js";
 
 process.env.ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "test-access-token-secret-for-pulsecast-tests";
 process.env.STREAM_SECRET = process.env.STREAM_SECRET || "test-stream-secret-for-pulsecast-tests";
@@ -242,6 +244,7 @@ test.before(async () => {
     };
 
     server = http.createServer(app);
+    initializeWatchPartySocket(server);
     await new Promise((resolve) => {
         server.listen(0, "127.0.0.1", () => {
             TEST_PORT = server.address().port;
@@ -741,4 +744,77 @@ test("Engagement: Comments API supports get, post, edit, delete with authenticat
         },
     });
     assert.equal(deleteRes.status, 200);
+});
+
+// ─── Watch Party WebSocket Security & Sync Tests ──────────────────────────────
+
+test("Watch Party: Host controls sync, non-host ignored, invalid payload ignored, handover on disconnect", async () => {
+    const socketUrl = `http://127.0.0.1:${TEST_PORT}/watch-party`;
+    const roomId = "test-wp-secure-room";
+
+    const client1 = ioClient(socketUrl, { transports: ["websocket"] });
+    const client2 = ioClient(socketUrl, { transports: ["websocket"] });
+
+    await Promise.all([
+        new Promise((resolve) => client1.on("connect", resolve)),
+        new Promise((resolve) => client2.on("connect", resolve)),
+    ]);
+
+    // 1. Two clients join: client 1 is host, client 2 is guest
+    client1.emit("join-room", { roomId, username: "HostUser" });
+    const c1State = await new Promise((resolve) => client1.on("room-state", resolve));
+    assert.equal(c1State.hostSocketId, client1.id);
+
+    client2.emit("join-room", { roomId, username: "GuestUser" });
+    const c2State = await new Promise((resolve) => client2.on("room-state", resolve));
+    assert.equal(c2State.hostSocketId, client1.id);
+
+    // 2. Host's action reaches the other client
+    const actionPromise = new Promise((resolve) => {
+        client2.on("sync-action", resolve);
+    });
+    client1.emit("sync-action", { action: "PLAY", currentTime: 45.0 });
+    const receivedAction = await actionPromise;
+    assert.equal(receivedAction.action, "PLAY");
+    assert.equal(receivedAction.currentTime, 45.0);
+
+    // 3. Non-host action is ignored (and emits sync-error)
+    let guestActionReachedHost = false;
+    const unexpectedActionHandler = () => {
+        guestActionReachedHost = true;
+    };
+    client1.on("sync-action", unexpectedActionHandler);
+
+    const guestErrorPromise = new Promise((resolve) => {
+        client2.on("sync-error", resolve);
+    });
+    client2.emit("sync-action", { action: "PAUSE", currentTime: 10.0 });
+    const syncError = await guestErrorPromise;
+    assert.ok(syncError.message.includes("host"));
+    assert.equal(guestActionReachedHost, false);
+    client1.off("sync-action", unexpectedActionHandler);
+
+    // 4. Invalid payload is ignored
+    let invalidActionReceived = false;
+    const invalidActionHandler = () => {
+        invalidActionReceived = true;
+    };
+    client2.on("sync-action", invalidActionHandler);
+
+    client1.emit("sync-action", { action: "INVALID_ACTION", currentTime: 10 });
+    client1.emit("sync-action", { action: "PLAY", currentTime: -10 });
+    client1.emit("sync-action", { action: "PLAY", currentTime: "invalid_time" });
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(invalidActionReceived, false);
+    client2.off("sync-action", invalidActionHandler);
+
+    // 5. Host disconnects -> handover to next client
+    const handoverPromise = new Promise((resolve) => {
+        client2.on("host-changed", resolve);
+    });
+    client1.disconnect();
+    const handoverData = await handoverPromise;
+    assert.equal(handoverData.hostSocketId, client2.id);
+
+    client2.disconnect();
 });

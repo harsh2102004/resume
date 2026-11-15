@@ -2,6 +2,8 @@ import { Server } from "socket.io";
 import { allowedOrigins } from "../utils/corsOrigins.js";
 
 const activeRooms = new Map();
+// Rate-limiting map for chat messages: socketId -> [timestamps]
+const socketMessageTimes = new Map();
 
 export const initializeWatchPartySocket = (httpServer) => {
     const io = new Server(httpServer, {
@@ -23,21 +25,43 @@ export const initializeWatchPartySocket = (httpServer) => {
         let currentRoomId = null;
         let currentUser = null;
 
-        socket.on("join-room", ({ roomId, username, videoId }) => {
-            if (!roomId) return;
+        socket.on("join-room", (payload) => {
+            if (!payload || typeof payload !== "object") return;
+
+            let { roomId, username, videoId } = payload;
+
+            // Validate roomId: short non-empty string (max 50 chars)
+            if (typeof roomId !== "string") return;
+            roomId = roomId.trim();
+            if (!roomId || roomId.length > 50) return;
+
+            // Validate username: short string (max 30 chars)
+            if (typeof username === "string") {
+                username = username.trim().slice(0, 30);
+            }
+            if (!username) {
+                username = `Guest-${socket.id.substring(0, 4)}`;
+            }
+
+            let room = activeRooms.get(roomId);
+
+            // Limit participants per room to 20
+            if (room && !room.participants.has(socket.id) && room.participants.size >= 20) {
+                socket.emit("room-error", { message: "Room is full (max 20 participants)" });
+                return;
+            }
 
             currentRoomId = roomId;
-            currentUser = username || `Guest-${socket.id.substring(0, 4)}`;
+            currentUser = username;
 
             socket.join(roomId);
 
-            let room = activeRooms.get(roomId);
             const isFirstUser = !room || room.participants.size === 0;
 
             if (!room) {
                 room = {
                     roomId,
-                    videoId: videoId || null,
+                    videoId: typeof videoId === "string" && videoId.trim() ? videoId.trim().slice(0, 100) : null,
                     currentTime: 0,
                     isPlaying: false,
                     lastUpdated: Date.now(),
@@ -76,15 +100,36 @@ export const initializeWatchPartySocket = (httpServer) => {
             socket.to(roomId).emit("user-joined", {
                 user: room.participants.get(socket.id),
                 participants: Array.from(room.participants.values()),
+                hostSocketId: room.hostSocketId,
             });
         });
 
-        socket.on("sync-action", ({ action, currentTime }) => {
+        socket.on("sync-action", (payload) => {
+            if (!payload || typeof payload !== "object") return;
             if (!currentRoomId) return;
+
             const room = activeRooms.get(currentRoomId);
             if (!room) return;
 
-            room.currentTime = typeof currentTime === "number" ? currentTime : room.currentTime;
+            // 1. Host check: only the host can control playback
+            if (socket.id !== room.hostSocketId) {
+                socket.emit("sync-error", { message: "Only the room host can control playback" });
+                return;
+            }
+
+            const { action, currentTime } = payload;
+
+            // 2. Validate action: must be exactly one of PLAY, PAUSE, SEEK
+            if (action !== "PLAY" && action !== "PAUSE" && action !== "SEEK") {
+                return;
+            }
+
+            // 3. Validate currentTime: finite number >= 0
+            if (typeof currentTime !== "number" || !Number.isFinite(currentTime) || currentTime < 0) {
+                return;
+            }
+
+            room.currentTime = currentTime;
             room.isPlaying = action === "PLAY";
             room.lastUpdated = Date.now();
 
@@ -97,7 +142,7 @@ export const initializeWatchPartySocket = (httpServer) => {
             });
         });
 
-        socket.on("heartbeat-query", () => {
+        socket.on("heartbeat-query", (payload) => {
             if (!currentRoomId) return;
             const room = activeRooms.get(currentRoomId);
             if (!room) return;
@@ -107,21 +152,44 @@ export const initializeWatchPartySocket = (httpServer) => {
                 liveTime += (Date.now() - room.lastUpdated) / 1000;
             }
 
+            const clientSendTime =
+                payload && typeof payload.clientSendTime === "number" ? payload.clientSendTime : undefined;
+
             socket.emit("heartbeat-ack", {
                 serverTime: liveTime,
                 isPlaying: room.isPlaying,
                 serverTimestamp: Date.now(),
+                clientSendTime,
             });
         });
 
-        socket.on("send-message", ({ message }) => {
-            if (!currentRoomId || !message?.trim()) return;
+        socket.on("send-message", (payload) => {
+            if (!payload || typeof payload !== "object") return;
+            if (!currentRoomId) return;
+
+            let { message } = payload;
+            if (typeof message !== "string") return;
+            message = message.trim();
+
+            // Validate length (max 500 characters)
+            if (!message || message.length > 500) return;
+
+            // Rate limit: 5 messages per 5 seconds per socket
+            const now = Date.now();
+            const history = socketMessageTimes.get(socket.id) || [];
+            const recent = history.filter((t) => now - t < 5000);
+            if (recent.length >= 5) {
+                socket.emit("chat-error", { message: "Chat rate limit exceeded. Please wait a moment." });
+                return;
+            }
+            recent.push(now);
+            socketMessageTimes.set(socket.id, recent);
 
             const chatPayload = {
-                id: `${Date.now()}-${socket.id.substring(0, 4)}`,
+                id: `${now}-${socket.id.substring(0, 4)}`,
                 senderId: socket.id,
                 senderName: currentUser,
-                message: message.trim(),
+                message: message.slice(0, 500),
                 timestamp: new Date().toISOString(),
             };
 
@@ -129,6 +197,8 @@ export const initializeWatchPartySocket = (httpServer) => {
         });
 
         socket.on("disconnect", () => {
+            socketMessageTimes.delete(socket.id);
+
             if (!currentRoomId) return;
             const room = activeRooms.get(currentRoomId);
             if (!room) return;
@@ -145,6 +215,7 @@ export const initializeWatchPartySocket = (httpServer) => {
                         room.hostSocketId = nextHost.socketId;
                         watchPartyNamespace.to(currentRoomId).emit("host-changed", {
                             newHost: nextHost,
+                            hostSocketId: nextHost.socketId,
                         });
                     }
                 }
@@ -153,6 +224,7 @@ export const initializeWatchPartySocket = (httpServer) => {
                     userId: socket.id,
                     username: currentUser,
                     participants: Array.from(room.participants.values()),
+                    hostSocketId: room.hostSocketId,
                 });
             }
         });

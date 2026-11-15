@@ -41,7 +41,7 @@ export const WatchParty = () => {
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight">Synchronized Watch Room</h1>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Multi-peer synchronized playback engine with sub-50ms WebSocket drift compensation and real-time room chat.
+            Multi-peer synchronized playback engine with clock-offset drift compensation and real-time room chat.
           </p>
         </div>
 

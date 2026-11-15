@@ -62,7 +62,7 @@
             ┌─────────────────────┴───────┐       └─────────────────────┐
             ▼                             ▼                             ▼
   [ Local Staging / Disk ]     [ Cloudinary CDN Engine ]     [ Socket.io Room Sync ]
-            │                  (Chunked Large Uploads)       (Host Election, ±50ms Drift)
+            │                  (Chunked Large Uploads)       (Host Election, Drift Compensation)
             ▼                             │
   [ Asynchronous Workers ]                │
    ├── FFmpeg HLS Worker                  │
@@ -126,7 +126,7 @@
 ### 6. Synchronized Real-Time Watch Party (WebSockets)
 * **Room-Based Architecture:** Users can spin up instant watch party rooms (`/watch-party/:roomId`) with unique shareable invite links.
 * **Dynamic Host Re-Election:** Rooms elect an active host whose playback controls (`PLAY`, `PAUSE`, `SEEK`) sync to all room members in real time. If the host leaves, the system automatically reassigns host rights to the next active peer.
-* **±50ms Drift Compensation:** Client-side algorithm that dynamically tweaks `videoElement.playbackRate` (`1.05x` or `0.95x`) to bring slightly desynchronized clients smoothly back into alignment without audio stutter, and triggers micro-seeks for major latency spikes.
+* **Dynamic Drift Compensation:** Client-side algorithm that dynamically tweaks `videoElement.playbackRate` (`1.05x` or `0.95x`) to bring slightly desynchronized clients smoothly back into alignment without audio stutter, and triggers micro-seeks for major latency spikes.
 * **Live Room Chat & Presence:** Integrated real-time room chat, user presence badges, and automatic join/leave notification toasts.
 
 ### 7. Media Tokenization & Stream Security
