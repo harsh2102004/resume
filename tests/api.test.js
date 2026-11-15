@@ -34,11 +34,13 @@ let TEST_PORT;
 let server;
 let lastCreatedVideo = null;
 let originalFindById;
+let originalFindOne;
 let originalCreate;
 let originalVideoFindById;
 let originalFindByIdAndUpdate;
 
 const testLocalVideoPath = path.resolve("storage/test-stream-file.mp4");
+const testRangeVideoPath = path.resolve("storage/test-range-file.mp4");
 const mockUnpublishedVideo = {
     _id: "64f1a2b3c4d5e6f7a8b9c0d1",
     title: "Private Video",
@@ -55,12 +57,21 @@ const mockPublishedVideo = {
     localPath: testLocalVideoPath,
     mimeType: "video/mp4",
 };
+const mockRangeVideo = {
+    _id: "64f1a2b3c4d5e6f7a8b9c0d7",
+    title: "Range Video",
+    isPublished: true,
+    owner: testUser._id,
+    localPath: testRangeVideoPath,
+    mimeType: "video/mp4",
+};
 
 test.before(async () => {
     if (!fs.existsSync(path.dirname(testLocalVideoPath))) {
         fs.mkdirSync(path.dirname(testLocalVideoPath), { recursive: true });
     }
     fs.writeFileSync(testLocalVideoPath, "test-video-content-stream-bytes");
+    fs.writeFileSync(testRangeVideoPath, Buffer.alloc(200, "x"));
 
     originalFindById = User.findById;
     User.findById = (id) => {
@@ -76,6 +87,9 @@ test.before(async () => {
         };
     };
 
+    originalFindOne = User.findOne;
+    User.findOne = () => Promise.resolve(null);
+
     originalVideoFindById = Video.findById;
     Video.findById = (id) => {
         let v = null;
@@ -83,6 +97,8 @@ test.before(async () => {
             v = { ...mockUnpublishedVideo };
         } else if (String(id) === String(mockPublishedVideo._id)) {
             v = { ...mockPublishedVideo };
+        } else if (String(id) === String(mockRangeVideo._id)) {
+            v = { ...mockRangeVideo };
         }
         if (!v) {
             return {
@@ -262,9 +278,11 @@ test.before(async () => {
 
 test.after(async () => {
     User.findById = originalFindById;
+    User.findOne = originalFindOne;
     Video.findById = originalVideoFindById;
     Video.create = originalCreate;
     if (fs.existsSync(testLocalVideoPath)) fs.unlinkSync(testLocalVideoPath);
+    if (fs.existsSync(testRangeVideoPath)) fs.unlinkSync(testRangeVideoPath);
     await new Promise((resolve) => server.close(resolve));
 });
 
@@ -492,6 +510,85 @@ test("Media Security: Non-owner signature rejects streaming unpublished video wi
 test("HTTP 206 Streaming: Should return 400 for invalid video ObjectId format", async () => {
     const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/non-existent-id`);
     assert.equal(res.status, 400);
+});
+
+// ─── HTTP Range Streaming Tests ───────────────────────────────────────────────
+
+test("HTTP Range Streaming: Full request without Range header returns 200 and full content", async () => {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${mockRangeVideo._id}`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("accept-ranges"), "bytes");
+    assert.equal(res.headers.get("content-length"), "200");
+    const buf = await res.arrayBuffer();
+    assert.equal(buf.byteLength, 200);
+});
+
+test("HTTP Range Streaming: Range bytes=0-99 returns 206 with correct Content-Range and length", async () => {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${mockRangeVideo._id}`, {
+        headers: { Range: "bytes=0-99" },
+    });
+    assert.equal(res.status, 206);
+    assert.equal(res.headers.get("content-range"), "bytes 0-99/200");
+    assert.equal(res.headers.get("content-length"), "100");
+    const buf = await res.arrayBuffer();
+    assert.equal(buf.byteLength, 100);
+});
+
+test("HTTP Range Streaming: Range bytes=100- returns 206 from offset to end of file", async () => {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${mockRangeVideo._id}`, {
+        headers: { Range: "bytes=100-" },
+    });
+    assert.equal(res.status, 206);
+    assert.equal(res.headers.get("content-range"), "bytes 100-199/200");
+    assert.equal(res.headers.get("content-length"), "100");
+    const buf = await res.arrayBuffer();
+    assert.equal(buf.byteLength, 100);
+});
+
+test("HTTP Range Streaming: Suffix range bytes=-50 returns 206 for last 50 bytes", async () => {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${mockRangeVideo._id}`, {
+        headers: { Range: "bytes=-50" },
+    });
+    assert.equal(res.status, 206);
+    assert.equal(res.headers.get("content-range"), "bytes 150-199/200");
+    assert.equal(res.headers.get("content-length"), "50");
+    const buf = await res.arrayBuffer();
+    assert.equal(buf.byteLength, 50);
+});
+
+test("HTTP Range Streaming: End beyond file bytes=150-500 clamps to fileSize - 1 with 206", async () => {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${mockRangeVideo._id}`, {
+        headers: { Range: "bytes=150-500" },
+    });
+    assert.equal(res.status, 206);
+    assert.equal(res.headers.get("content-range"), "bytes 150-199/200");
+    assert.equal(res.headers.get("content-length"), "50");
+    const buf = await res.arrayBuffer();
+    assert.equal(buf.byteLength, 50);
+});
+
+test("HTTP Range Streaming: Start beyond file returns 416 with Content-Range bytes */size", async () => {
+    const res = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${mockRangeVideo._id}`, {
+        headers: { Range: "bytes=300-" },
+    });
+    assert.equal(res.status, 416);
+    assert.equal(res.headers.get("content-range"), "bytes */200");
+});
+
+test("HTTP Range Streaming: Garbage header is handled safely", async () => {
+    // Non-bytes garbage header is ignored, returning 200 full file
+    const res1 = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${mockRangeVideo._id}`, {
+        headers: { Range: "garbage-header-value" },
+    });
+    assert.equal(res1.status, 200);
+    assert.equal(res1.headers.get("content-length"), "200");
+
+    // Malformed bytes range with NaN start returns 416
+    const res2 = await fetch(`http://127.0.0.1:${TEST_PORT}/api/v1/videos/stream/${mockRangeVideo._id}`, {
+        headers: { Range: "bytes=invalid-range" },
+    });
+    assert.equal(res2.status, 416);
+    assert.equal(res2.headers.get("content-range"), "bytes */200");
 });
 
 test("Security: Raw upload file cannot be fetched from public /uploads/resumable route (returns 404)", async () => {

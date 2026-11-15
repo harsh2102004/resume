@@ -35,7 +35,6 @@
     "@tus/file-store": "^2.1.1",
     "@tus/server": "^2.4.6",
     "bcrypt": "^5.1.1",
-    "bcryptjs": "^3.0.3",
     "bullmq": "^6.7.6",
     "cloudinary": "^1.41.0",
     "cookie-parser": "^1.4.6",

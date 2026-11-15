@@ -21,36 +21,29 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
     const pipeline = [];
 
-    // Filter by search query on title or description
-    if (query) {
-        pipeline.push({
-            $match: {
-                $or: [
-                    { title: { $regex: query, $options: "i" } },
-                    { description: { $regex: query, $options: "i" } }
-                ]
-            }
-        });
-    }
+    // Filter published videos first before expensive lookups
+    const matchStage = {
+        isPublished: true,
+    };
 
     // Filter by specific user/channel
     if (userId) {
         if (!isValidObjectId(userId)) {
             throw new ApiError(400, "Invalid userId format");
         }
-        pipeline.push({
-            $match: {
-                owner: new mongoose.Types.ObjectId(userId)
-            }
-        });
+        matchStage.owner = new mongoose.Types.ObjectId(userId);
     }
 
-    // Only return published videos
-    pipeline.push({
-        $match: {
-            isPublished: true
-        }
-    });
+    // Filter by search query on title or description (escaped for regex safety)
+    if (query && typeof query === "string" && query.trim()) {
+        const escapedQuery = query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        matchStage.$or = [
+            { title: { $regex: escapedQuery, $options: "i" } },
+            { description: { $regex: escapedQuery, $options: "i" } },
+        ];
+    }
+
+    pipeline.push({ $match: matchStage });
 
     // Populate owner information
     pipeline.push(
@@ -65,27 +58,34 @@ const getAllVideos = asyncHandler(async (req, res) => {
                         $project: {
                             username: 1,
                             fullName: 1,
-                            avatar: 1
-                        }
-                    }
-                ]
-            }
+                            avatar: 1,
+                        },
+                    },
+                ],
+            },
         },
         {
             $addFields: {
-                owner: { $first: "$owner" }
-            }
+                owner: { $first: "$owner" },
+            },
         }
     );
 
-    // Sorting
+    // Sorting (whitelisted fields: createdAt, views, title, duration)
+    const allowedSortFields = ["createdAt", "views", "title", "duration"];
+    const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const validSortOrder = sortType === "asc" ? 1 : -1;
     const sortStage = {};
-    sortStage[sortBy] = sortType === "asc" ? 1 : -1;
+    sortStage[validSortBy] = validSortOrder;
     pipeline.push({ $sort: sortStage });
 
+    // Capped pagination (limit at most 50)
+    const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
+
     const options = {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10)
+        page: parsedPage,
+        limit: parsedLimit,
     };
 
     const videos = await Video.aggregatePaginate(Video.aggregate(pipeline), options);

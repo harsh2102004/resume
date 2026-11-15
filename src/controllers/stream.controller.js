@@ -135,28 +135,85 @@ const streamVideo = asyncHandler(async (req, res) => {
         const stat = fs.statSync(filePath);
         const fileSize = stat.size;
 
-        if (!range) {
-            res.writeHead(200, {
-                "Content-Length": fileSize,
-                "Content-Type": video.mimeType || "video/mp4",
-                "Accept-Ranges": "bytes",
-            });
-            fs.createReadStream(filePath).pipe(res);
-            return;
+        // Parse range header safely
+        let rangeParsed = null;
+        if (range) {
+            if (typeof range === "string" && range.startsWith("bytes=")) {
+                const rangeSpec = range.replace(/^bytes=/, "").trim();
+                const parts = rangeSpec.split("-");
+                if (parts.length === 2) {
+                    const [startStr, endStr] = parts;
+
+                    if (startStr === "") {
+                        // Suffix range: bytes=-N
+                        const suffixLength = parseInt(endStr, 10);
+                        if (isNaN(suffixLength) || suffixLength <= 0) {
+                            rangeParsed = { error: 416 };
+                        } else {
+                            const start = Math.max(0, fileSize - suffixLength);
+                            const end = fileSize - 1;
+                            rangeParsed = { start, end };
+                        }
+                    } else {
+                        // Range: bytes=start- or bytes=start-end
+                        const start = parseInt(startStr, 10);
+                        if (isNaN(start) || start < 0 || start >= fileSize) {
+                            rangeParsed = { error: 416 };
+                        } else {
+                            let end;
+                            if (endStr === "") {
+                                end = fileSize - 1;
+                            } else {
+                                end = parseInt(endStr, 10);
+                                if (isNaN(end) || end < start) {
+                                    rangeParsed = { error: 416 };
+                                } else if (end >= fileSize) {
+                                    // If end is past the file, CLAMP it to fileSize - 1 (do not return 416)
+                                    end = fileSize - 1;
+                                }
+                            }
+                            if (!rangeParsed) {
+                                rangeParsed = { start, end };
+                            }
+                        }
+                    }
+                } else {
+                    rangeParsed = { error: 416 };
+                }
+            } else {
+                // Malformed / non-bytes range header: ignore and serve full representation
+                rangeParsed = null;
+            }
         }
 
-        const parts = range.replace(/bytes=/, "").split("-");
-        const start = parseInt(parts[0], 10);
-        const CHUNK_SIZE = 1 * 1024 * 1024;
-        const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + CHUNK_SIZE - 1, fileSize - 1);
-
-        if (start >= fileSize || end >= fileSize || start > end) {
+        if (rangeParsed && rangeParsed.error === 416) {
             res.status(416).set({
                 "Content-Range": `bytes */${fileSize}`,
             });
             return res.end();
         }
 
+        if (!rangeParsed) {
+            res.writeHead(200, {
+                "Content-Length": fileSize,
+                "Content-Type": video.mimeType || "video/mp4",
+                "Accept-Ranges": "bytes",
+            });
+            const fullStream = fs.createReadStream(filePath);
+            res.on("close", () => {
+                fullStream.destroy();
+            });
+            fullStream.on("error", (error) => {
+                console.error("Stream error:", error);
+                if (!res.headersSent) {
+                    res.status(500).send("Streaming failed");
+                }
+            });
+            fullStream.pipe(res);
+            return;
+        }
+
+        const { start, end } = rangeParsed;
         const contentLength = (end - start) + 1;
         res.writeHead(206, {
             "Content-Range": `bytes ${start}-${end}/${fileSize}`,
@@ -166,14 +223,16 @@ const streamVideo = asyncHandler(async (req, res) => {
         });
 
         const videoStream = fs.createReadStream(filePath, { start, end });
-        videoStream.pipe(res);
-
+        res.on("close", () => {
+            videoStream.destroy();
+        });
         videoStream.on("error", (error) => {
             console.error("Stream error:", error);
             if (!res.headersSent) {
                 res.status(500).send("Streaming failed");
             }
         });
+        videoStream.pipe(res);
         return;
     }
 
