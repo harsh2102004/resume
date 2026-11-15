@@ -5,13 +5,21 @@ export class TusUploader {
     this.file = file;
     this.endpoint = options.endpoint || `${API_BASE_URL}/api/v1/videos/resumable-upload`;
     this.chunkSize = options.chunkSize || 2 * 1024 * 1024;
-    this.metadata = options.metadata || {};
+    this.metadata = { ...(options.metadata || {}) };
+    delete this.metadata.userId;
     this.onProgress = options.onProgress || (() => {});
     this.onSuccess = options.onSuccess || (() => {});
     this.onError = options.onError || (() => {});
 
     this.uploadUrl = options.uploadUrl || null;
-    this.headers = options.headers || {};
+    const token =
+      options.token ||
+      (typeof localStorage !== "undefined" ? localStorage.getItem("pulsecast_token") : null);
+
+    this.headers = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    };
     this.offset = 0;
     this.isPaused = false;
     this.isAborted = false;

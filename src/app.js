@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { tusServer } from "./services/tus.service.js";
+import { authenticateRequest } from "./middlewares/auth.middleware.js";
 
 const app = express();
 
@@ -29,15 +30,17 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
-app.all("/api/v1/videos/resumable-upload*", (req, res) => {
-    // Only logged in users can initiate video uploads
-    if (req.method === "POST") {
-        const token = req.cookies?.accessToken || req.headers["authorization"]?.replace("Bearer ", "");
-        if (!token) {
+app.all("/api/v1/videos/resumable-upload*", async (req, res) => {
+    // Require valid authentication for POST and PATCH (anything that creates or writes data)
+    if (req.method === "POST" || req.method === "PATCH") {
+        try {
+            const user = await authenticateRequest(req);
+            req.user = user;
+        } catch (error) {
             return res.status(401).json({
                 statusCode: 401,
-                message: "Authentication required. Please sign in to upload videos.",
-                success: false
+                message: error?.message || "Authentication required. Please sign in to upload videos.",
+                success: false,
             });
         }
     }

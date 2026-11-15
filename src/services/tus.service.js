@@ -18,14 +18,30 @@ export const tusServer = new Server({
         directory: resumableUploadDir,
     }),
     respectForwardedHeaders: true,
+    onUploadCreate: async (req, upload) => {
+        const rawReq = req.runtime?.node?.req || req.node?.req || req;
+        const user = rawReq?.user;
+        const userId = user?._id ? user._id.toString() : null;
+
+        if (!userId) {
+            throw { status_code: 401, body: "Authentication required" };
+        }
+
+        const metadata = { ...(upload.metadata || {}) };
+        delete metadata.userId; // Ignore and strip client metadata.userId
+        metadata.ownerId = userId; // Attach verified user id on server side
+
+        return { metadata };
+    },
 });
 
 tusServer.on(EVENTS.POST_FINISH, async (req, res, upload) => {
     try {
         const metadata = upload.metadata || {};
         const title = metadata.title || metadata.filename || `Video-${upload.id.substring(0, 8)}`;
-        const description = metadata.description || "";
-        const userId = metadata.userId || null;
+        const description = metadata.description || title || "Uploaded video";
+        const rawReq = req?.runtime?.node?.req || req?.node?.req || req;
+        const owner = metadata.ownerId || (rawReq?.user?._id ? rawReq.user._id.toString() : null);
         const mimeType = metadata.filetype || "video/mp4";
 
         const storedFilePath = path.join(resumableUploadDir, upload.id);
@@ -64,7 +80,7 @@ tusServer.on(EVENTS.POST_FINISH, async (req, res, upload) => {
             duration,
             fileSize: upload.size,
             mimeType,
-            owner: userId,
+            owner,
             isPublished: true,
         });
 

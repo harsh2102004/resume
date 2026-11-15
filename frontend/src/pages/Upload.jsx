@@ -121,7 +121,6 @@ export const Upload = () => {
         filetype: file.type || "video/mp4",
         title: title || file.name,
         description: description || "",
-        userId: user?._id || "",
       },
       onProgress: ({ percentage, loaded, total }) => {
         setUploadProgress(percentage);
