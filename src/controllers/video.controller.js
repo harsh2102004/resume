@@ -2,7 +2,6 @@ import mongoose, { isValidObjectId } from "mongoose";
 import fs from "fs";
 import path from "path";
 import { Video } from "../models/video.model.js";
-import { User } from "../models/user.model.js";
 import { Comment } from "../models/comment.model.js";
 import { Like } from "../models/like.model.js";
 import { Subscription } from "../models/subscription.model.js";

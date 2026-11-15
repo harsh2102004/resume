@@ -158,7 +158,7 @@ app.use("/api/v1/dashboard", dashboardRouter);
 
 // ─── Central error handler ────────────────────────────────────────────────────
 // Must be the LAST middleware registered
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
     if (err instanceof ApiError) {
         return res.status(err.statusCode).json(new ApiResponse(err.statusCode, null, err.message));
     }

@@ -5,7 +5,7 @@
 ![PulseCast Banner](https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&auto=format&fit=crop&q=80)
 
 [![PulseCast CI/CD Pipeline](https://github.com/harsh2102004/resume/actions/workflows/ci.yml/badge.svg)](https://github.com/harsh2102004/resume/actions/workflows/ci.yml)
-[![Node.js Version](https://img.shields.io/badge/Node.js-v18%20|%20v20%20|%20v22-green.svg)](https://nodejs.org/)
+[![Node.js Version](https://img.shields.io/badge/Node.js-v20%20|%20v22-green.svg)](https://nodejs.org/)
 [![React Version](https://img.shields.io/badge/React-19.0.0-blue.svg)](https://react.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Deployed on Render](https://img.shields.io/badge/Backend-Render-46E3B7.svg)](https://pulsecast-qff8.onrender.com)
@@ -362,11 +362,12 @@ npm test
 
 ### GitHub Actions CI/CD (`.github/workflows/ci.yml`)
 On every push and pull request to `main`, GitHub Actions triggers a build pipeline that:
-1. Provisions Ubuntu environments with multiple Node.js matrix versions (v18, v20, v22).
-2. Spawns an in-memory MongoDB service container (`mongo:7.0`).
-3. Executes automated linting and syntax validation.
-4. Runs the native test suite and verifies 100% test pass rate.
-5. Deploys passing builds automatically to Render (Backend) and Vercel (Frontend).
+1. Provisions Ubuntu environments across Node.js matrix versions (v20.x, v22.x).
+2. Performs deterministic dependency installation using `npm ci` with GitHub Actions npm cache.
+3. Runs automated ESLint linting on the backend codebase.
+4. Executes the full integration and security test suite against an isolated in-memory MongoDB (`mongodb-memory-server`) with code coverage reporting via `c8`.
+5. Runs `npm ci`, `oxlint` linting, and Vite production bundle build in `/frontend`.
+6. Builds the backend production Docker container image (`docker build`).
 
 ---
 
@@ -404,10 +405,14 @@ pulsecast/
 │   ├── app.js                   # Express application setup
 │   ├── constants.js             # Global constants & database names
 │   └── index.js                 # Server entry point & socket listener
-├── tests/                       # Native Node.js test suite
-│   ├── healthcheck.test.js
-│   ├── media.security.test.js
-│   └── tus.test.js
+├── tests/                       # Native Node.js test suite (with mongodb-memory-server)
+│   ├── helpers/                 # Test harness, DB bootstrap & auth generators
+│   ├── auth.test.js             # Authentication, tokens, password checks
+│   ├── uploads.test.js          # TUS protocol upload tests
+│   ├── videos.test.js           # Video CRUD, permissions, visibility
+│   ├── social.test.js           # Likes, subscriptions, comments
+│   ├── streaming.test.js        # Range & signed URL streaming tests
+│   └── watchparty.test.js       # WebSocket watch room sync tests
 ├── vercel.json                  # Root SPA fallback
 ├── package.json
 └── README.md

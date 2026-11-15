@@ -19,7 +19,7 @@ const generateAccessAndRefereshTokens = async(userId) =>{
         return {accessToken, refreshToken}
 
 
-    } catch (error) {
+    } catch {
         throw new ApiError(500, "Something went wrong while generating referesh and access token")
     }
 }
@@ -185,7 +185,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             secure: true
         }
     
-        const {accessToken, newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
+        const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefereshTokens(user._id)
     
         return res
         .status(200)
