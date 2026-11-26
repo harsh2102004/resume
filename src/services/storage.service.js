@@ -2,9 +2,21 @@ import path from "path";
 import fs from "fs";
 import { v2 as cloudinary } from "cloudinary";
 
+const uploadRawFile = async (filePath, folder, publicId, resourceType = "raw") => {
+    return cloudinary.uploader.upload(filePath, {
+        resource_type: resourceType,
+        folder,
+        public_id: publicId,
+        use_filename: true,
+        unique_filename: false,
+        overwrite: true,
+    });
+};
+
 /**
  * Uploads generated HLS and storyboard folders to Cloudinary if credentials exist,
- * and falls back to local disk paths if no credentials exist or on error.
+ * rewriting playlist and VTT references to their CDN URLs, and falls back to
+ * local disk paths if no credentials exist or on error.
  */
 export const uploadHlsFolder = async (videoId) => {
     const hasCredentials = Boolean(
@@ -30,50 +42,68 @@ export const uploadHlsFolder = async (videoId) => {
             api_secret: process.env.CLOUDINARY_API_SECRET,
         });
 
-        // 1. Upload HLS files (playlists & chunks)
+        // 1. Upload HLS files: segments (.ts) -> variant playlists (.m3u8) -> master.m3u8
         const hlsDir = path.resolve(`public/uploads/hls/${videoId}`);
+        const hlsFolder = `pulsecast/hls/${videoId}`;
         let cdnMasterUrl = localMasterPath;
 
         if (fs.existsSync(hlsDir)) {
             const files = fs.readdirSync(hlsDir);
-            for (const file of files) {
-                const filePath = path.join(hlsDir, file);
-                const uploadResult = await cloudinary.uploader.upload(filePath, {
-                    resource_type: "raw",
-                    folder: `pulsecast/hls/${videoId}`,
-                    public_id: file,
-                    use_filename: true,
-                    unique_filename: false,
-                    overwrite: true,
-                });
+            const segmentUrls = {};
+            const playlistUrls = {};
 
-                if (file === "master.m3u8" && uploadResult?.secure_url) {
-                    cdnMasterUrl = uploadResult.secure_url;
+            for (const file of files.filter((f) => f.endsWith(".ts"))) {
+                const res = await uploadRawFile(path.join(hlsDir, file), hlsFolder, file, "raw");
+                if (res?.secure_url) segmentUrls[file] = res.secure_url;
+            }
+
+            for (const file of files.filter((f) => f.endsWith(".m3u8") && f !== "master.m3u8")) {
+                const filePath = path.join(hlsDir, file);
+                let content = fs.readFileSync(filePath, "utf8");
+                for (const [segName, segUrl] of Object.entries(segmentUrls)) {
+                    content = content.replaceAll(segName, segUrl);
                 }
+                fs.writeFileSync(filePath, content, "utf8");
+                const res = await uploadRawFile(filePath, hlsFolder, file, "raw");
+                if (res?.secure_url) playlistUrls[file] = res.secure_url;
+            }
+
+            const masterFile = path.join(hlsDir, "master.m3u8");
+            if (fs.existsSync(masterFile)) {
+                let masterContent = fs.readFileSync(masterFile, "utf8");
+                for (const [plName, plUrl] of Object.entries(playlistUrls)) {
+                    masterContent = masterContent.replaceAll(plName, plUrl);
+                }
+                fs.writeFileSync(masterFile, masterContent, "utf8");
+                const res = await uploadRawFile(masterFile, hlsFolder, "master.m3u8", "raw");
+                if (res?.secure_url) cdnMasterUrl = res.secure_url;
             }
         }
 
-        // 2. Upload Storyboard files (sprites & vtt)
+        // 2. Upload Storyboard files: sprite images first, then rewrite & upload storyboard.vtt
         const storyboardDir = path.resolve(`public/uploads/storyboards/${videoId}`);
+        const sbFolder = `pulsecast/storyboards/${videoId}`;
         let cdnVttUrl = localVttPath;
 
         if (fs.existsSync(storyboardDir)) {
             const files = fs.readdirSync(storyboardDir);
-            for (const file of files) {
-                const filePath = path.join(storyboardDir, file);
-                const isVtt = file.endsWith(".vtt");
-                const uploadResult = await cloudinary.uploader.upload(filePath, {
-                    resource_type: isVtt ? "raw" : "image",
-                    folder: `pulsecast/storyboards/${videoId}`,
-                    public_id: file,
-                    use_filename: true,
-                    unique_filename: false,
-                    overwrite: true,
-                });
+            const spriteUrls = {};
 
-                if (isVtt && uploadResult?.secure_url) {
-                    cdnVttUrl = uploadResult.secure_url;
+            for (const file of files.filter((f) => !f.endsWith(".vtt"))) {
+                const res = await uploadRawFile(path.join(storyboardDir, file), sbFolder, file, "image");
+                if (res?.secure_url) spriteUrls[file] = res.secure_url;
+            }
+
+            const vttFile = path.join(storyboardDir, "storyboard.vtt");
+            if (fs.existsSync(vttFile)) {
+                let vttContent = fs.readFileSync(vttFile, "utf8");
+                for (const [spriteName, spriteUrl] of Object.entries(spriteUrls)) {
+                    vttContent = vttContent.replaceAll(`/uploads/storyboards/${videoId}/${spriteName}`, spriteUrl);
+                    vttContent = vttContent.replaceAll(spriteName, spriteUrl);
                 }
+                fs.writeFileSync(vttFile, vttContent, "utf8");
+                const res = await uploadRawFile(vttFile, sbFolder, "storyboard.vtt", "raw");
+                if (res?.secure_url) cdnVttUrl = res.secure_url;
             }
         }
 
@@ -89,4 +119,3 @@ export const uploadHlsFolder = async (videoId) => {
         };
     }
 };
-

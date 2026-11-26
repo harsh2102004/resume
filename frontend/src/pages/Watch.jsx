@@ -61,6 +61,31 @@ export const Watch = () => {
     };
   }, [videoId, token]);
 
+  // Poll for transcoding completion when a newly uploaded video is PENDING or PROCESSING
+  useEffect(() => {
+    const status = video?.transcodingStatus;
+    if (!videoId || (status !== "PENDING" && status !== "PROCESSING")) return;
+
+    let isMounted = true;
+    const intervalId = setInterval(async () => {
+      try {
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${API_BASE_URL}/api/v1/videos/${videoId}`, { headers });
+        const json = await res.json();
+        if (isMounted && json.data) {
+          setVideo(json.data);
+        }
+      } catch {
+        // Ignore transient polling errors
+      }
+    }, 4000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [videoId, token, video?.transcodingStatus]);
+
   // Load Up Next videos from server
   useEffect(() => {
     let isMounted = true;

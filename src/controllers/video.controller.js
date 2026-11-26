@@ -10,7 +10,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary, uploadVideoOnCloudinary } from "../utils/cloudinary.js";
 import { transcodeVideoJob } from "../workers/transcode.worker.js";
-import { generateStoryboardJob } from "../workers/storyboard.worker.js";
 
 /**
  * Get all published videos with search query, sorting, and pagination
@@ -177,9 +176,6 @@ const publishAVideo = asyncHandler(async (req, res) => {
     if (persistentLocalPath && fs.existsSync(persistentLocalPath)) {
         transcodeVideoJob(video._id, persistentLocalPath).catch((err) => {
             console.error("Background HLS transcode job error:", err);
-        });
-        generateStoryboardJob(video._id, persistentLocalPath).catch((err) => {
-            console.error("Background storyboard generation error:", err);
         });
     }
 

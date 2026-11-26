@@ -47,10 +47,10 @@ const transcodeToProfile = (inputPath, outputDir, profile, onProgress) => {
         ffmpeg(inputPath)
             .outputOptions([
                 "-vf", filterGraph,
-                "-c:v libx264",
-                "-preset veryfast",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
                 "-b:v", profile.videoBitrate,
-                "-c:a aac",
+                "-c:a", "aac",
                 "-b:a", profile.audioBitrate,
                 "-hls_time", "6",
                 "-hls_playlist_type", "vod",

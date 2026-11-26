@@ -4,6 +4,7 @@ import { Server, EVENTS } from "@tus/server";
 import { FileStore } from "@tus/file-store";
 import { Video } from "../models/video.model.js";
 import { addVideoProcessingJob } from "../queues/video.queue.js";
+import { transcodeVideoJob } from "../workers/transcode.worker.js";
 
 const uploadDirEnv = process.env.UPLOAD_DIR || "storage/uploads/resumable";
 const resumableUploadDir = path.resolve(uploadDirEnv);
@@ -65,8 +66,13 @@ tusServer.on(EVENTS.POST_FINISH, async (req, res, upload) => {
             await video.save();
         }
 
-        // Add job to background processing queue and return quickly
-        await addVideoProcessingJob(video._id, storedFilePath);
+        // Add job to background processing queue; fall back to in-process transcoding if Redis is unavailable
+        const job = await addVideoProcessingJob(video._id, storedFilePath);
+        if (!job) {
+            transcodeVideoJob(video._id, storedFilePath).catch((err) => {
+                console.error("[TUS] Background fallback transcode error:", err?.message || err);
+            });
+        }
     } catch (error) {
         console.error("Upload finish error:", error);
     }

@@ -65,13 +65,20 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
             const cuePayload = lines[i + 1]?.trim();
 
             if (cuePayload && cuePayload.includes("#xywh=")) {
-              const [url, coordPart] = cuePayload.split("#xywh=");
+              const [rawUrl, coordPart] = cuePayload.split("#xywh=");
               const [x, y, w, h] = coordPart.split(",").map(Number);
+              let resolvedUrl = rawUrl;
+              try {
+                const vttBase = new URL(storyboardVtt, window.location.origin);
+                resolvedUrl = new URL(rawUrl, vttBase).href;
+              } catch {
+                // Keep rawUrl if URL resolution fails
+              }
 
               parsedCues.push({
                 start: parseVttTimestamp(startStr),
                 end: parseVttTimestamp(endStr),
-                url,
+                url: resolvedUrl,
                 x,
                 y,
                 w: w || 160,
@@ -96,6 +103,8 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
 
     const isHlsSource = src.includes(".m3u8") || src.includes("/hls/");
     setIsHls(isHlsSource);
+    setQualities([]);
+    setCurrentQuality(-1);
 
     if (hlsRef.current) {
       hlsRef.current.destroy();
