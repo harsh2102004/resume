@@ -22,18 +22,25 @@ export const Navbar = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 glass-panel border-b border-white/10 px-4 sm:px-8 py-3.5 flex justify-between items-center transition-all duration-200">
+    <nav className="sticky top-0 z-50 glass-panel border-b border-white/10 px-4 sm:px-8 py-3 flex justify-between items-center transition-all duration-200">
+      {/* Subtle top ambient hairline */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
       {/* Brand & Navigation */}
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-6 sm:gap-8">
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform">
             <svg className="w-4 h-4 text-white fill-current translate-x-0.5" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
           </div>
-          <span className="text-xl font-black tracking-tight text-white group-hover:text-indigo-400 transition-colors">
-            PulseCast
-          </span>
+          <div className="flex flex-col">
+            <span className="text-lg sm:text-xl font-black tracking-tight text-gradient leading-none">
+              PulseCast
+            </span>
+            <span className="hidden sm:block text-[9.5px] uppercase tracking-[0.18em] text-slate-400 font-semibold mt-0.5">
+              Media Engine
+            </span>
+          </div>
         </Link>
 
         {/* Navigation Links */}

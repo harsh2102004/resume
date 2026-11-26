@@ -504,10 +504,18 @@ export const Watch = () => {
                 >
                   <div className="relative w-36 aspect-video rounded-lg overflow-hidden flex-shrink-0 bg-slate-950">
                     <img
-                      src={item.thumbnail || "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800"}
+                      src={item.thumbnail || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80"}
                       alt={item.title}
+                      onError={(e) => {
+                        e.currentTarget.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80";
+                      }}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
+                    {(item.hlsPath || item.qualities?.length > 0) && (
+                      <span className="absolute top-1 left-1 bg-indigo-600/85 text-[9px] font-bold px-1.5 py-0.5 rounded text-white">
+                        HLS
+                      </span>
+                    )}
                     {item.duration ? (
                       <span className="absolute bottom-1 right-1 bg-black/85 text-[10px] px-1 py-0.2 rounded text-white font-medium">
                         {Math.floor(item.duration / 60)}:{String(item.duration % 60).padStart(2, "0")}
