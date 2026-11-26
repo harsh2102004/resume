@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 
 const formatTime = (seconds) => {
-  if (isNaN(seconds)) return "00:00";
+  if (isNaN(seconds) || !isFinite(seconds)) return "00:00";
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
@@ -25,6 +25,7 @@ const parseVttTimestamp = (timestamp) => {
 };
 
 export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
+  const containerRef = useRef(null);
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
   const progressTrackRef = useRef(null);
@@ -37,6 +38,9 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Storyboard state
   const [cues, setCues] = useState([]);
@@ -168,6 +172,15 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
     };
   }, [src]);
 
+  // Track fullscreen changes
+  useEffect(() => {
+    const onFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
   const togglePlay = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -175,6 +188,34 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
       video.play().catch((err) => console.log("Play interrupted:", err));
     } else {
       video.pause();
+    }
+  };
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const nextMuted = !video.muted;
+    video.muted = nextMuted;
+    setIsMuted(nextMuted);
+  };
+
+  const handleVolumeChange = (e) => {
+    const val = parseFloat(e.target.value);
+    const video = videoRef.current;
+    if (!video) return;
+    video.volume = val;
+    video.muted = val === 0;
+    setVolume(val);
+    setIsMuted(val === 0);
+  };
+
+  const toggleFullscreen = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
     }
   };
 
@@ -208,12 +249,12 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
         y: matchingCue.y,
         w: matchingCue.w,
         h: matchingCue.h,
-        clientX: Math.max(10, Math.min(rect.width - 170, offsetX - 80)),
+        clientX: Math.max(8, Math.min(rect.width - (matchingCue.w || 160) - 8, offsetX - (matchingCue.w || 160) / 2)),
       });
     } else {
       setHoverPreview({
         time: targetTime,
-        clientX: Math.max(10, Math.min(rect.width - 60, offsetX - 30)),
+        clientX: Math.max(8, Math.min(rect.width - 56, offsetX - 24)),
       });
     }
   };
@@ -234,28 +275,33 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
     setCurrentTime(newTime);
   };
 
+  const progressPct = duration ? Math.min(100, (currentTime / duration) * 100) : 0;
+
   return (
-    <div className="relative rounded-2xl overflow-hidden bg-black shadow-2xl border border-white/10 group select-none">
+    <div
+      ref={containerRef}
+      className="relative rounded-2xl overflow-hidden bg-black shadow-2xl border border-white/10 group select-none"
+    >
       <video
         ref={videoRef}
         poster={poster}
+        onClick={togglePlay}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         preload="auto"
-        className="w-full aspect-video object-contain bg-black"
+        className="w-full aspect-video object-contain bg-black cursor-pointer"
         playsInline
-        controls
       />
 
       {/* Centered Play Button Overlay when paused */}
       {!isPlaying && (
         <div
           onClick={togglePlay}
-          className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] cursor-pointer group-hover:bg-black/25 transition-all z-10"
+          className="absolute inset-0 flex items-center justify-center bg-black/35 backdrop-blur-[1px] cursor-pointer group-hover:bg-black/20 transition-all z-10"
         >
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-600/90 hover:bg-indigo-500 text-white flex items-center justify-center shadow-2xl hover:scale-110 transition-all duration-200 border border-white/20">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-500/85 hover:bg-indigo-400/90 text-white flex items-center justify-center shadow-2xl hover:scale-110 transition-all duration-200 border border-white/20">
             <svg className="w-8 h-8 fill-current translate-x-0.5" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
@@ -263,78 +309,145 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
         </div>
       )}
 
-      {/* Adaptive Quality Switcher Overlay (for HLS streams) */}
-      {isHls && qualities.length > 0 && (
-        <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2 shadow-xl">
-          <span className="text-[11px] text-slate-300 font-mono font-medium">Quality:</span>
-          <select
-            value={currentQuality}
-            onChange={(e) => {
-              const lvl = parseInt(e.target.value, 10);
-              setCurrentQuality(lvl);
-              if (hlsRef.current) hlsRef.current.currentLevel = lvl;
-            }}
-            className="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer"
+      {/* Unified Custom Bottom Control Bar (Single Progress Bar + Storyboard Preview) */}
+      <div
+        className={`absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-8 pb-3 px-4 transition-opacity duration-200 ${
+          isPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+        }`}
+      >
+        {/* Floating Storyboard / Timestamp Hover Preview */}
+        {hoverPreview && (
+          <div
+            className="absolute bottom-14 flex flex-col items-center pointer-events-none"
+            style={{ left: `${hoverPreview.clientX}px` }}
           >
-            <option value={-1} className="bg-slate-900 text-white">Auto (Adaptive)</option>
-            {qualities.map((q) => (
-              <option key={q.id} value={q.id} className="bg-slate-900 text-white">
-                {q.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Interactive Storyboard Timeline Scrubber Bar */}
-      {cues.length > 0 && (
-        <div className="absolute bottom-14 left-4 right-4 z-30 opacity-85 group-hover:opacity-100 transition-opacity">
-          <div className="flex items-center justify-between mb-1 pointer-events-none">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-200/90 bg-slate-950/75 px-2 py-0.5 rounded border border-white/10">
-              Storyboard Scrubber
+            {hoverPreview.url ? (
+              <div
+                className="rounded-lg border-2 border-indigo-300/80 shadow-2xl overflow-hidden bg-black"
+                style={{
+                  width: `${hoverPreview.w}px`,
+                  height: `${hoverPreview.h}px`,
+                  backgroundImage: `url(${hoverPreview.url})`,
+                  backgroundPosition: `-${hoverPreview.x}px -${hoverPreview.y}px`,
+                  backgroundRepeat: "no-repeat",
+                }}
+              />
+            ) : null}
+            <span className="mt-1 bg-black/90 text-white text-[11px] px-2 py-0.5 rounded font-mono font-medium shadow border border-white/10">
+              {formatTime(hoverPreview.time)}
             </span>
           </div>
-          {/* Floating Hover Thumbnail Preview */}
-          {hoverPreview && (
-            <div
-              className="absolute bottom-6 flex flex-col items-center pointer-events-none transition-transform"
-              style={{ left: `${hoverPreview.clientX}px` }}
-            >
-              {hoverPreview.url ? (
-                <div
-                  className="rounded-lg border-2 border-indigo-400/80 shadow-2xl overflow-hidden bg-black"
-                  style={{
-                    width: `${hoverPreview.w}px`,
-                    height: `${hoverPreview.h}px`,
-                    backgroundImage: `url(${hoverPreview.url})`,
-                    backgroundPosition: `-${hoverPreview.x}px -${hoverPreview.y}px`,
-                    backgroundRepeat: "no-repeat",
-                  }}
-                />
-              ) : null}
-              <span className="mt-1 bg-black/90 text-white text-xs px-2 py-0.5 rounded font-mono font-medium shadow border border-white/10">
-                {formatTime(hoverPreview.time)}
-              </span>
-            </div>
-          )}
+        )}
 
-          {/* Interactive Scrubbing Track */}
+        {/* Single Interactive Progress Bar */}
+        <div
+          ref={progressTrackRef}
+          onMouseMove={handleTimelineMouseMove}
+          onMouseLeave={handleTimelineMouseLeave}
+          onClick={handleTimelineClick}
+          className="relative h-1.5 hover:h-2.5 w-full bg-white/25 hover:bg-white/35 rounded-full cursor-pointer transition-all flex items-center mb-2.5"
+        >
           <div
-            ref={progressTrackRef}
-            onMouseMove={handleTimelineMouseMove}
-            onMouseLeave={handleTimelineMouseLeave}
-            onClick={handleTimelineClick}
-            className="relative h-2 hover:h-3 w-full bg-white/20 hover:bg-white/30 rounded-full cursor-pointer transition-all flex items-center"
+            className="h-full bg-gradient-to-r from-indigo-400 to-teal-300 rounded-full relative"
+            style={{ width: `${progressPct}%` }}
           >
-            <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full shadow-lg"
-              style={{
-                width: `${duration ? (currentTime / duration) * 100 : 0}%`,
-              }}
-            />
+            <span className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-3 rounded-full bg-white shadow opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </div>
-      )}
+
+        {/* Controls Row */}
+        <div className="flex items-center justify-between gap-3 text-white text-xs">
+          <div className="flex items-center gap-3">
+            {/* Play / Pause */}
+            <button
+              type="button"
+              onClick={togglePlay}
+              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              title={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? (
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
+            </button>
+
+            {/* Volume */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={toggleMute}
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                title={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted || volume === 0 ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  </svg>
+                )}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                className="w-16 accent-indigo-400 cursor-pointer hidden sm:block"
+              />
+            </div>
+
+            {/* Time Display */}
+            <span className="font-mono text-[11px] text-slate-200">
+              {formatTime(currentTime)} <span className="text-slate-400">/</span> {formatTime(duration)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Adaptive Quality Switcher (for HLS streams) */}
+            {isHls && qualities.length > 0 && (
+              <select
+                value={currentQuality}
+                onChange={(e) => {
+                  const lvl = parseInt(e.target.value, 10);
+                  setCurrentQuality(lvl);
+                  if (hlsRef.current) hlsRef.current.currentLevel = lvl;
+                }}
+                className="bg-white/10 hover:bg-white/15 text-white text-[11px] font-semibold px-2 py-1 rounded-lg border border-white/10 focus:outline-none cursor-pointer"
+                title="Stream Quality"
+              >
+                <option value={-1} className="bg-slate-900 text-white">Auto (ABR)</option>
+                {qualities.map((q) => (
+                  <option key={q.id} value={q.id} className="bg-slate-900 text-white">
+                    {q.label}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Fullscreen */}
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
