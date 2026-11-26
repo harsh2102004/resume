@@ -8,19 +8,19 @@
   }
 
   * {
-    border-color: rgba(226, 232, 240, 0.08);
+    border-color: rgba(15, 23, 42, 0.09);
   }
 
   body {
-    background-color: #0f131f;
-    color: #e2e8f0;
+    background-color: #f4f7fb;
+    color: #0f172a;
     font-family: var(--font-sans);
     min-height: 100vh;
     overflow-x: hidden;
     background-image:
-      radial-gradient(ellipse 75% 50% at 15% 0%, rgba(165, 180, 252, 0.10) 0%, transparent 55%),
-      radial-gradient(ellipse 65% 45% at 88% 15%, rgba(153, 246, 228, 0.06) 0%, transparent 50%),
-      radial-gradient(ellipse 70% 50% at 75% 95%, rgba(244, 180, 200, 0.06) 0%, transparent 55%);
+      radial-gradient(ellipse 80% 50% at 15% -5%, rgba(37, 99, 235, 0.08) 0%, transparent 55%),
+      radial-gradient(ellipse 65% 45% at 88% 12%, rgba(14, 165, 233, 0.07) 0%, transparent 50%),
+      radial-gradient(ellipse 70% 50% at 75% 95%, rgba(37, 99, 235, 0.05) 0%, transparent 55%);
     background-attachment: fixed;
   }
 
@@ -33,20 +33,20 @@
   }
 }
 
-/* Soft Twilight Scrollbar */
+/* Crisp Blue & White Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f131f;
+  background: #eef2f7;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2b3554;
+  background: #cbd5e1;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #818cf8;
+  background: #2563eb;
 }
 
 .scrollbar-none {
@@ -57,37 +57,55 @@
   display: none;
 }
 
-/* Soft Frosted Glassmorphism */
+/* Crisp White Elevated Surfaces */
 .glass-panel {
-  background: rgba(22, 28, 46, 0.68);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.09);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 12px 32px -16px rgba(2, 6, 23, 0.55);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  box-shadow: 0 10px 30px -14px rgba(15, 23, 42, 0.12);
 }
 
 .glass-card {
-  background: linear-gradient(180deg, rgba(28, 35, 56, 0.68) 0%, rgba(20, 25, 42, 0.76) 100%);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(226, 232, 240, 0.08);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 10px 24px -14px rgba(2, 6, 23, 0.45);
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.28s ease,
-              box-shadow 0.28s ease,
-              background 0.28s ease;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 6px 20px -10px rgba(15, 23, 42, 0.1);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
 }
 
 .glass-card:hover {
-  background: linear-gradient(180deg, rgba(35, 44, 69, 0.82) 0%, rgba(24, 30, 50, 0.88) 100%);
-  border-color: rgba(165, 180, 252, 0.32);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
-              0 16px 32px -14px rgba(129, 140, 248, 0.2);
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 16px 34px -14px rgba(37, 99, 235, 0.22);
   transform: translateY(-3px);
 }
 
+/* High-contrast ink inside white glass-panel / glass-card across all pages */
+.glass-panel .text-white:not([class*="bg-"]):not([class*="from-"]):not([class*="to-"]),
+.glass-card .text-white:not([class*="bg-"]):not([class*="from-"]):not([class*="to-"]) {
+  color: #0f172a;
+}
+.glass-panel .text-slate-300,
+.glass-card .text-slate-300,
+.glass-panel .text-slate-200,
+.glass-card .text-slate-200 {
+  color: #334155;
+}
+.glass-panel .text-slate-400,
+.glass-card .text-slate-400 {
+  color: #475569;
+}
+.glass-panel input:not([type="range"]),
+.glass-panel textarea,
+.glass-panel select {
+  background-color: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
 .text-gradient {
-  background: linear-gradient(135deg, #f8fafc 0%, #ddd6fe 55%, #bae6fd 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 60%, #0284c7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -97,7 +115,7 @@
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .glow-btn:hover {
-  box-shadow: 0 6px 20px -4px rgba(129, 140, 248, 0.4);
+  box-shadow: 0 8px 22px -4px rgba(37, 99, 235, 0.45);
   transform: translateY(-1px);
 }
 
@@ -126,7 +144,7 @@
   background-image: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0,
-    rgba(255, 255, 255, 0.05) 50%,
+    rgba(37, 99, 235, 0.08) 50%,
     rgba(255, 255, 255, 0) 100%
   );
   animation: shimmer 1.5s infinite;

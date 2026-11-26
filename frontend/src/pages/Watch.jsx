@@ -335,12 +335,12 @@ export const Watch = () => {
 
           {/* Video Title */}
           <div className="space-y-4">
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-snug">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight leading-snug">
               {video?.title || "Video Stream"}
             </h1>
 
             {/* Channel Bar & Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-white/5">
+            <div className="flex flex-wrap items-center justify-between gap-4 py-3 border-b border-slate-200">
               {/* Creator Info */}
               <div className="flex items-center gap-3">
                 <Link
@@ -348,7 +348,7 @@ export const Watch = () => {
                   className="flex items-center gap-3 group cursor-pointer"
                   title="View creator channel & videos"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:ring-2 group-hover:ring-indigo-500/70 transition-all overflow-hidden">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:ring-2 group-hover:ring-blue-500/70 transition-all overflow-hidden">
                     {video?.owner?.avatar ? (
                       <img
                         src={video.owner.avatar}
@@ -360,10 +360,10 @@ export const Watch = () => {
                     )}
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm group-hover:text-indigo-400 transition-colors">
+                    <h3 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">
                       {video?.owner?.fullName || "PulseCast Channel"}
                     </h3>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-500">
                       {formatSubscribers(subscriberCount)}
                     </p>
                   </div>
@@ -376,8 +376,8 @@ export const Watch = () => {
                   onClick={handleToggleSubscribe}
                   className={`ml-3 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
                     isSubscribed
-                      ? "bg-slate-800 text-slate-200 hover:bg-slate-700 border border-white/10"
-                      : "bg-white text-slate-900 hover:bg-slate-100 font-bold shadow-md hover:scale-102"
+                      ? "bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                      : "bg-slate-900 text-white hover:bg-blue-700 font-bold shadow-md"
                   }`}
                 >
                   {isSubscribed ? (
@@ -400,8 +400,8 @@ export const Watch = () => {
                   onClick={handleLike}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                     hasLiked
-                      ? "bg-indigo-600 border-indigo-500 text-white"
-                      : "bg-slate-900/80 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800"
+                      ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
+                      : "bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:text-blue-700 shadow-sm"
                   }`}
                 >
                   <svg className="w-4 h-4" fill={hasLiked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
@@ -413,7 +413,7 @@ export const Watch = () => {
                 {/* Share Button */}
                 <button
                   onClick={handleCopyLink}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:border-blue-400 hover:text-blue-700 shadow-sm transition-all cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -424,7 +424,7 @@ export const Watch = () => {
                 {/* Watch Party Button */}
                 <button
                   onClick={handleStartWatchParty}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-blue-700 text-white transition-all shadow-md cursor-pointer"
                 >
                   <span>👥</span>
                   <span>Watch Party</span>
@@ -481,8 +481,8 @@ export const Watch = () => {
 
         {/* Right Column: Up Next Videos */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-white/5">
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
               Up Next
             </h2>
           </div>

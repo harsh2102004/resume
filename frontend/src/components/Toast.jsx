@@ -14,7 +14,7 @@ export const Toast = ({ message, type = "error", onClose, duration = 4000 }) => 
   const isError = type === "error";
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-xl border transition-all animate-fade-in bg-slate-900/95 border-red-500/30 text-red-300">
+    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl backdrop-blur-xl border transition-all animate-fade-in bg-slate-900 border-blue-500/30 text-white">
       <div
         className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
           isError ? "bg-red-500/20 text-red-400" : "bg-emerald-500/20 text-emerald-400"
