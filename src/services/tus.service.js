@@ -51,7 +51,9 @@ tusServer.on(EVENTS.POST_FINISH, async (req, res, upload) => {
             description,
             videoFile: `/api/v1/videos/stream/temp`,
             localPath: storedFilePath,
-            thumbnail: metadata.thumbnail || "/images/default-thumbnail.jpg",
+            thumbnail:
+                metadata.thumbnail ||
+                "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80",
             duration: 0,
             fileSize: upload.size || 0,
             mimeType,
