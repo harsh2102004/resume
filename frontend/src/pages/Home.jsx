@@ -75,20 +75,20 @@ export const Home = () => {
               src={featuredVideo.thumbnail || FALLBACK_THUMBNAIL}
               alt={featuredVideo.title}
               onError={(e) => { e.currentTarget.src = FALLBACK_THUMBNAIL; }}
-              className="w-full h-full object-cover opacity-35 scale-105 blur-[1px]"
+              className="w-full h-full object-cover opacity-30 scale-105 blur-[1px]"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#06070b] via-[#06070b]/85 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#06070b] via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#111626] via-[#111626]/85 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#111626] via-transparent to-transparent" />
           </div>
 
           <div className="relative z-10 p-6 sm:p-10 lg:p-12 max-w-2xl space-y-5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-400/15 text-indigo-200 border border-indigo-300/25">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-300 animate-pulse" />
                 Featured Stream
               </span>
               {(featuredVideo.hlsPath || featuredVideo.qualities?.length > 0) && (
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-400/25">
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-teal-400/12 text-teal-200 border border-teal-300/20">
                   Adaptive HLS
                 </span>
               )}
@@ -109,7 +109,7 @@ export const Home = () => {
               <Link
                 to={`/watch/${featuredVideo._id}`}
                 state={{ video: featuredVideo }}
-                className="glow-btn inline-flex items-center gap-2.5 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30"
+                className="glow-btn inline-flex items-center gap-2.5 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500/90 to-violet-400/85 hover:from-indigo-400 hover:to-violet-400 text-white font-bold text-sm shadow-lg shadow-indigo-500/20"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
@@ -139,8 +139,8 @@ export const Home = () => {
               onClick={() => setSelectedCategory(label)}
               className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                 selectedCategory === label
-                  ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/25 font-bold"
-                  : "bg-white/[0.04] hover:bg-white/[0.09] text-slate-300 border border-white/5"
+                  ? "bg-indigo-400/20 text-indigo-100 border border-indigo-300/30 shadow-sm font-bold"
+                  : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/5"
               }`}
             >
               {label}
@@ -256,7 +256,7 @@ export const Home = () => {
 
                     {/* HLS / Quality Badge */}
                     {isAbr && (
-                      <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-indigo-600/85 backdrop-blur-md text-white border border-white/20 shadow">
+                      <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-slate-900/75 backdrop-blur-md text-indigo-200 border border-indigo-300/25 shadow">
                         HLS ABR
                       </span>
                     )}

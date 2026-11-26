@@ -24,11 +24,11 @@ export const Navbar = () => {
   return (
     <nav className="sticky top-0 z-50 glass-panel border-b border-white/10 px-4 sm:px-8 py-3 flex justify-between items-center transition-all duration-200">
       {/* Subtle top ambient hairline */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-300/25 to-transparent" />
       {/* Brand & Navigation */}
       <div className="flex items-center gap-6 sm:gap-8">
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-400/90 via-violet-400/85 to-sky-400/85 flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
             <svg className="w-4 h-4 text-white fill-current translate-x-0.5" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
@@ -92,7 +92,7 @@ export const Navbar = () => {
       <div className="flex items-center gap-3">
         <button
           onClick={handleUploadClick}
-          className="glow-btn px-4 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/30 flex items-center gap-2 transition-transform active:scale-95 cursor-pointer"
+          className="glow-btn px-4 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-500/85 hover:bg-indigo-400/90 shadow-md shadow-indigo-500/20 flex items-center gap-2 transition-transform active:scale-95 cursor-pointer"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

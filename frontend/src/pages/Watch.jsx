@@ -512,7 +512,7 @@ export const Watch = () => {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     {(item.hlsPath || item.qualities?.length > 0) && (
-                      <span className="absolute top-1 left-1 bg-indigo-600/85 text-[9px] font-bold px-1.5 py-0.5 rounded text-white">
+                      <span className="absolute top-1 left-1 bg-slate-900/80 border border-indigo-300/25 text-[9px] font-bold px-1.5 py-0.5 rounded text-indigo-200">
                         HLS
                       </span>
                     )}
