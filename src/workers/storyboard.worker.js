@@ -1,3 +1,8 @@
+/**
+ * @file src/workers/storyboard.worker.js
+ * @description FFmpeg + FFprobe job that probes video duration and generates 5x5 (160x90, 5s interval) JPEG sprite sheets and storyboard.vtt.
+ */
+
 import path from "path";
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";

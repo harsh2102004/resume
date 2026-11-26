@@ -1,3 +1,8 @@
+/**
+ * @file src/services/tus.service.js
+ * @description TUS 1.0.0 resumable upload server (@tus/server + FileStore) that binds verified ownerId and triggers video transcoding on POST_FINISH.
+ */
+
 import path from "path";
 import fs from "fs";
 import { Server, EVENTS } from "@tus/server";

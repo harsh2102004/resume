@@ -1,3 +1,8 @@
+/**
+ * @file src/controllers/user.controller.js
+ * @description User authentication and profile controller: register, login, logout, JWT refresh, password/profile updates, channel lookup, and watch history.
+ */
+
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {ApiError} from "../utils/ApiError.js"
 import { User} from "../models/user.model.js"

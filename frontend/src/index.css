@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/index.css
+ * @description Tailwind v4 entry and custom Blue & White theme utilities (.glass-panel, .glass-card, .text-gradient, shimmer).
+ */
+
 @import "tailwindcss";
 
 @layer base {

@@ -1,3 +1,8 @@
+/**
+ * @file src/index.js
+ * @description Server entry point: initializes HTTP server, Socket.IO Watch Party namespace, and MongoDB connection with local fallback.
+ */
+
 import "dotenv/config";
 import http from "http";
 import connectDB from "./db/index.js";

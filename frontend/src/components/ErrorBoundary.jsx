@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/components/ErrorBoundary.jsx
+ * @description React ErrorBoundary catching render errors and displaying a recovery UI.
+ */
+
 import React from "react";
 import { Link } from "react-router-dom";
 

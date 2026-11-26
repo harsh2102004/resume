@@ -1,3 +1,8 @@
+/**
+ * @file src/controllers/playlist.controller.js
+ * @description Playlist CRUD controller for creating playlists and adding/removing videos.
+ */
+
 import {isValidObjectId} from "mongoose"
 import {Playlist} from "../models/playlist.model.js"
 import {ApiError} from "../utils/ApiError.js"

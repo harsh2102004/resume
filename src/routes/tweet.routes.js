@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/tweet.routes.js
+ * @description Express router for /api/v1/tweets endpoints.
+ */
+
 import { Router } from 'express';
 import {
     createTweet,

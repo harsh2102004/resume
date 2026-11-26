@@ -1,3 +1,8 @@
+/**
+ * @file src/controllers/like.controller.js
+ * @description Like toggle controller for videos, comments, and tweets, plus fetching a user's liked videos.
+ */
+
 import mongoose, { isValidObjectId } from "mongoose";
 import { Like } from "../models/like.model.js";
 import { Video } from "../models/video.model.js";

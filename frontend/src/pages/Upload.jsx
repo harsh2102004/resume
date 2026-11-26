@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/pages/Upload.jsx
+ * @description Resumable video upload page using TusUploader with drag-and-drop, progress bar, pause/resume, and session-expiry recovery.
+ */
+
 import React, { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";

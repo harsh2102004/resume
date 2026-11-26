@@ -1,3 +1,8 @@
+/**
+ * @file src/controllers/video.controller.js
+ * @description Video catalog and management controller: search/filter/paginate videos, upload via multer/Cloudinary, update, delete, and toggle publish status.
+ */
+
 import mongoose, { isValidObjectId } from "mongoose";
 import fs from "fs";
 import path from "path";

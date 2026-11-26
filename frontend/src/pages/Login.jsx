@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/pages/Login.jsx
+ * @description Authentication page supporting Sign In and Sign Up modes with redirect handling.
+ */
+
 import React, { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";

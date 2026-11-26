@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/components/WatchPartyRoom.jsx
+ * @description Socket.IO Watch Party client with host-only controls, 4-ping RTT clock calibration, playback-rate drift correction, and live chat.
+ */
+
 import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import HlsPlayer from "./HlsPlayer";

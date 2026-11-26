@@ -1,3 +1,8 @@
+/**
+ * @file src/services/storage.service.js
+ * @description Uploads generated HLS playlists/segments and WebVTT storyboards to Cloudinary (rewriting URLs) with local disk fallback.
+ */
+
 import path from "path";
 import fs from "fs";
 import { v2 as cloudinary } from "cloudinary";

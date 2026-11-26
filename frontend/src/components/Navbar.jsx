@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/components/Navbar.jsx
+ * @description Sticky navigation bar with Explore, Upload, Watch Party links, and user profile dropdown.
+ */
+
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";

@@ -1,3 +1,8 @@
+/**
+ * @file src/models/like.model.js
+ * @description Mongoose schema for likes on videos, comments, and tweets with { likedBy, video } index.
+ */
+
 import mongoose, {Schema} from "mongoose";
 
 

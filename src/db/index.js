@@ -1,3 +1,8 @@
+/**
+ * @file src/db/index.js
+ * @description MongoDB connection helper using Mongoose and MONGODB_URI + DB_NAME.
+ */
+
 import mongoose from "mongoose";
 import { DB_NAME } from "../constants.js";
 

@@ -1,3 +1,8 @@
+/**
+ * @file src/workers/transcode.worker.js
+ * @description FFmpeg worker job that triggers storyboard generation, transcodes 360p/720p H.264/AAC HLS streams, creates master.m3u8, and updates progress.
+ */
+
 import path from "path";
 import fs from "fs";
 import ffmpeg from "fluent-ffmpeg";

@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/dashboard.routes.js
+ * @description Express router for /api/v1/dashboard endpoints.
+ */
+
 import { Router } from 'express';
 import {
     getChannelStats,

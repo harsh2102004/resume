@@ -1,3 +1,8 @@
+/**
+ * @file src/middlewares/multer.middleware.js
+ * @description Multer disk-storage middleware for temporary multipart file uploads.
+ */
+
 import multer from "multer";
 
 const storage = multer.diskStorage({

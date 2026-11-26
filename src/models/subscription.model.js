@@ -1,3 +1,8 @@
+/**
+ * @file src/models/subscription.model.js
+ * @description Mongoose schema for channel subscriptions with a unique compound index on { subscriber, channel }.
+ */
+
 import mongoose, { Schema } from "mongoose";
 
 const subscriptionSchema = new Schema(

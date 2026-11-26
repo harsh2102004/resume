@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/utils/tusUploader.js
+ * @description Client-side TUS 1.0.0 resumable uploader sending 2 MB chunks via XHR with pause/resume, HEAD offset sync, and 401 token refresh.
+ */
+
 import { API_BASE_URL } from "../config/api";
 
 export class TusUploader {

@@ -1,3 +1,8 @@
+/**
+ * @file src/app.js
+ * @description Express application setup: configures Helmet, CORS, rate limiters, TUS upload gate, static HLS/storyboard routes, API routers, and central error handler.
+ */
+
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";

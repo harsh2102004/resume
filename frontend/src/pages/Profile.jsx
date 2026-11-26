@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/pages/Profile.jsx
+ * @description Channel and user profile page displaying uploaded videos, watch history, liked videos, and channel stats.
+ */
+
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";

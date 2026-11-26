@@ -1,3 +1,8 @@
+/**
+ * @file src/utils/ApiError.js
+ * @description Custom Error subclass carrying HTTP statusCode and structured error details.
+ */
+
 class ApiError extends Error {
     constructor(
         statusCode,

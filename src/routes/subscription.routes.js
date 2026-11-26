@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/subscription.routes.js
+ * @description Express router for /api/v1/subscriptions endpoints.
+ */
+
 import { Router } from "express";
 import {
   getSubscribedChannels,

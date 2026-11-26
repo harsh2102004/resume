@@ -1,3 +1,8 @@
+/**
+ * @file src/controllers/healthcheck.controller.js
+ * @description Healthcheck endpoint returning 200 OK for container and uptime probes.
+ */
+
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 

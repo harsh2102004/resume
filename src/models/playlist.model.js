@@ -1,3 +1,8 @@
+/**
+ * @file src/models/playlist.model.js
+ * @description Mongoose schema for user-owned video playlists.
+ */
+
 import mongoose, {Schema} from "mongoose";
 
 const playlistSchema = new Schema({

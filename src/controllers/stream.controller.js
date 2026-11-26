@@ -1,3 +1,8 @@
+/**
+ * @file src/controllers/stream.controller.js
+ * @description Video streaming controller supporting HTTP 200/206/416 byte-range streaming, disconnect cleanup, HMAC signed URLs, and remote URL proxying.
+ */
+
 import fs from "fs";
 import path from "path";
 import jwt from "jsonwebtoken";

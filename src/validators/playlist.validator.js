@@ -1,3 +1,8 @@
+/**
+ * @file src/validators/playlist.validator.js
+ * @description Zod validation schemas for creating and updating playlists.
+ */
+
 import { z } from "zod";
 
 export const createPlaylistSchema = z.object({

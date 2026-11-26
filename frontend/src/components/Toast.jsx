@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/components/Toast.jsx
+ * @description Dismissible floating toast notification component.
+ */
+
 import React, { useEffect } from "react";
 
 export const Toast = ({ message, type = "error", onClose, duration = 4000 }) => {

@@ -1,3 +1,8 @@
+/**
+ * @file src/models/user.model.js
+ * @description Mongoose schema for users with password hashing hooks and JWT access/refresh token generators.
+ */
+
 import mongoose, {Schema} from "mongoose";
 import jwt from "jsonwebtoken"
 import { hashPassword, comparePassword } from "../utils/hash.js";

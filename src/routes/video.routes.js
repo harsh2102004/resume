@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/video.routes.js
+ * @description Express router for /api/v1/videos CRUD, byte-range streaming, and signed URL endpoints.
+ */
+
 import { Router } from "express";
 import {
     deleteVideo,

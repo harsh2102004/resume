@@ -1,3 +1,8 @@
+/**
+ * @file src/sockets/watchParty.socket.js
+ * @description Socket.IO /watch-party namespace: manages rooms (max 20 users), host-only playback sync, heartbeat RTT queries, host handover, and rate-limited chat.
+ */
+
 import { Server } from "socket.io";
 import { allowedOrigins } from "../utils/corsOrigins.js";
 

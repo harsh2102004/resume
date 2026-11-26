@@ -1,3 +1,8 @@
+/**
+ * @file src/middlewares/auth.middleware.js
+ * @description JWT authentication helpers (authenticateRequest, verifyJWT, optionalJWT) reading Bearer headers or accessToken cookies.
+ */
+
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";

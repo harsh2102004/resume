@@ -1,3 +1,8 @@
+/**
+ * @file src/validators/auth.validator.js
+ * @description Zod validation schemas for user registration, login, and password change.
+ */
+
 import { z } from "zod";
 
 export const registerSchema = z.object({

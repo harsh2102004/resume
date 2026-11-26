@@ -1,3 +1,8 @@
+/**
+ * @file src/utils/cloudinary.js
+ * @description Cloudinary upload and asset deletion helper with local temp-file cleanup.
+ */
+
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 import dotenv from "dotenv";

@@ -1,3 +1,8 @@
+/**
+ * @file src/models/comment.model.js
+ * @description Mongoose schema for video comments with { video, createdAt } index and aggregate pagination.
+ */
+
 import mongoose, {Schema} from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 

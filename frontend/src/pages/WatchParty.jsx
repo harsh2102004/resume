@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/pages/WatchParty.jsx
+ * @description Watch Party lobby and active room wrapper for joining or creating synchronized viewing rooms.
+ */
+
 import React, { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import WatchPartyRoom from "../components/WatchPartyRoom";

@@ -1,3 +1,8 @@
+/**
+ * @file src/models/video.model.js
+ * @description Mongoose schema for videos tracking source URLs, HLS master path, transcoding status/progress, qualities, storyboardVtt, and owner indexes.
+ */
+
 import mongoose, {Schema} from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 

@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/config/api.js
+ * @description Resolves API_BASE_URL and WS_BASE_URL for backend REST and Socket.IO connections.
+ */
+
 export const API_BASE_URL = (
   import.meta.env.VITE_API_URL || "https://pulsecast-qff8.onrender.com"
 ).replace(/\/$/, "");

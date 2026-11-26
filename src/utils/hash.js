@@ -1,3 +1,8 @@
+/**
+ * @file src/utils/hash.js
+ * @description Password hashing and comparison utilities using bcrypt.
+ */
+
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 

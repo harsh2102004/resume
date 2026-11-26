@@ -1,3 +1,8 @@
+/**
+ * @file src/controllers/dashboard.controller.js
+ * @description Creator dashboard controller: aggregates channel stats (views, subscribers, videos, likes) and channel video lists.
+ */
+
 import mongoose from "mongoose";
 import { Video } from "../models/video.model.js";
 import { Subscription } from "../models/subscription.model.js";

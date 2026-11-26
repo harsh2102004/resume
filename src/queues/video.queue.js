@@ -1,3 +1,8 @@
+/**
+ * @file src/queues/video.queue.js
+ * @description BullMQ producer and Redis connection for enqueuing background video-processing jobs with exponential backoff.
+ */
+
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
 

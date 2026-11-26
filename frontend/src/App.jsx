@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/App.jsx
+ * @description Root React router, AuthProvider wrapper, ErrorBoundary, and shared page layout + footer.
+ */
+
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";

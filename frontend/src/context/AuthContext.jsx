@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/context/AuthContext.jsx
+ * @description React authentication context managing user state, JWT/refresh tokens in localStorage, session validation, and authFetch auto-refresh.
+ */
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { API_BASE_URL } from "../config/api";
 

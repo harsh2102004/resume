@@ -1,3 +1,8 @@
+/**
+ * @file src/utils/mediaSecurity.js
+ * @description HMAC-SHA256 signed stream URL generator and timing-safe verifier for protected video streams.
+ */
+
 import crypto from "crypto";
 
 if (process.env.NODE_ENV === "production" && !process.env.STREAM_SECRET && !process.env.ACCESS_TOKEN_SECRET) {

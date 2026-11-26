@@ -1,3 +1,8 @@
+/**
+ * @file src/utils/ApiResponse.js
+ * @description Standardized JSON response envelope ({ statusCode, data, message, success }).
+ */
+
 class ApiResponse {
     constructor(statusCode, data, message = "Success"){
         this.statusCode = statusCode

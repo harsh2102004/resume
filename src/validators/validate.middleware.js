@@ -1,3 +1,8 @@
+/**
+ * @file src/validators/validate.middleware.js
+ * @description Express middleware that validates req.body against a Zod schema and forwards ApiError(400) on failure.
+ */
+
 import { ApiError } from "../utils/ApiError.js";
 
 /**

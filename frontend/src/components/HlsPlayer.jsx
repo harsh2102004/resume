@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/components/HlsPlayer.jsx
+ * @description Custom video player integrating hls.js ABR quality switching, unified scrubber bar, and WebVTT #xywh= storyboard hover previews.
+ */
+
 import React, { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 

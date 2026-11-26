@@ -1,3 +1,8 @@
+/**
+ * @file src/controllers/subscription.controller.js
+ * @description Channel subscription controller: toggle subscribe (blocking self-subscription) and list subscribers/subscribed channels.
+ */
+
 import mongoose, { isValidObjectId } from "mongoose";
 import { User } from "../models/user.model.js";
 import { Subscription } from "../models/subscription.model.js";

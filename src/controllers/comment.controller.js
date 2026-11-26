@@ -1,3 +1,8 @@
+/**
+ * @file src/controllers/comment.controller.js
+ * @description Comment CRUD controller: paginated video comments with like counts, plus create, update, and delete with ownership checks.
+ */
+
 import mongoose, { isValidObjectId } from "mongoose";
 import { Comment } from "../models/comment.model.js";
 import { Video } from "../models/video.model.js";

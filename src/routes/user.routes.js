@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/user.routes.js
+ * @description Express router for /api/v1/users auth, profile, and channel endpoints.
+ */
+
 import { Router } from "express";
 import { 
     loginUser, 

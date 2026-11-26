@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/like.routes.js
+ * @description Express router for /api/v1/likes endpoints.
+ */
+
 import { Router } from 'express';
 import {
     getLikedVideos,

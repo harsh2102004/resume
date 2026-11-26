@@ -1,3 +1,8 @@
+/**
+ * @file src/validators/video.validator.js
+ * @description Zod validation schemas for updating video metadata.
+ */
+
 import { z } from "zod";
 
 export const updateVideoSchema = z

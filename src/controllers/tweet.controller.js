@@ -1,3 +1,8 @@
+/**
+ * @file src/controllers/tweet.controller.js
+ * @description Community tweet CRUD controller with owner authorization.
+ */
+
 import mongoose, { isValidObjectId } from "mongoose";
 import { Tweet } from "../models/tweet.model.js";
 import { ApiError } from "../utils/ApiError.js";

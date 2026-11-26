@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/pages/Home.jsx
+ * @description Explore page featuring the spotlight hero banner, category/search toolbar, and responsive video card grid.
+ */
+
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { API_BASE_URL } from "../config/api";

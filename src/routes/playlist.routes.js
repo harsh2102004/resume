@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/playlist.routes.js
+ * @description Express router for /api/v1/playlist endpoints.
+ */
+
 import { Router } from 'express';
 import {
     addVideoToPlaylist,

@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/comment.routes.js
+ * @description Express router for /api/v1/comments endpoints.
+ */
+
 import { Router } from "express";
 import {
   addComment,

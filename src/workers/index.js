@@ -1,3 +1,8 @@
+/**
+ * @file src/workers/index.js
+ * @description Standalone BullMQ worker process (concurrency 2) that connects to MongoDB and runs transcodeVideoJob for queued videos.
+ */
+
 import "dotenv/config";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";

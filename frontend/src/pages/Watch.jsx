@@ -1,3 +1,8 @@
+/**
+ * @file frontend/src/pages/Watch.jsx
+ * @description Video watch page with HlsPlayer, transcode status polling, like/subscribe/share/delete actions, CommentsSection, and Up Next sidebar.
+ */
+
 import React, { useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import HlsPlayer from "../components/HlsPlayer";
