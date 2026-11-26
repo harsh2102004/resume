@@ -288,7 +288,12 @@ export const HlsPlayer = ({ src, poster, storyboardVtt, onTimeUpdate }) => {
 
       {/* Interactive Storyboard Timeline Scrubber Bar */}
       {cues.length > 0 && (
-        <div className="absolute bottom-14 left-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute bottom-14 left-4 right-4 z-30 opacity-85 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center justify-between mb-1 pointer-events-none">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-200/90 bg-slate-950/75 px-2 py-0.5 rounded border border-white/10">
+              Storyboard Scrubber
+            </span>
+          </div>
           {/* Floating Hover Thumbnail Preview */}
           {hoverPreview && (
             <div
